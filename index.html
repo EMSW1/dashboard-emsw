@@ -442,14 +442,12 @@
           }
         };
 
-        // Whitelist Configuration for Active Platforms
-        const ALLOWED_PLATFORMS = {
-            'DMF': ['SELENIUM 2'],
-            'EMS1': ['SELENIUM'],
-            'EMS3': ['WEB', 'SELENIUM', 'AUTOMAT'],
-            'EMS4': ['WEB', 'SELENIUM'],
-            'EMS6': ['SELENIUM', 'AUTOMAT']
-        };
+        // Whitelist Configuration - DEPRECATED for Auto-Update feature
+        // const ALLOWED_PLATFORMS = { ... };
+        // We will now allow all platforms dynamically to support "MAJ auto" (Auto Update)
+        
+        // NEW: Blacklist Configuration
+        const IGNORED_PLATFORMS = ['SELENIUM_BRAVE', 'SELENIUM_CHROME']; 
 
         // Current active configs (starts with built-in, adds custom ones from Master DB)
         let ALL_ENTITY_CONFIGS = { ...BUILTIN_CONFIGS };
@@ -507,11 +505,10 @@
         // --- LOGIC UPDATE: processPlanData ---
         function processPlanData(rawPlans, rootPath, entityId) {
              const platforms = {};
-             const allowed = ALLOWED_PLATFORMS[entityId];
-
+             
              Object.keys(rawPlans).forEach(key => {
-                // If this entity has a whitelist, strictly enforce it
-                if (allowed && !allowed.includes(key)) return;
+                // Blacklist check
+                if (IGNORED_PLATFORMS.includes(key)) return;
 
                 const planData = rawPlans[key] || {};
                 const currentData = planData.current || {};
@@ -725,8 +722,9 @@
         }
 
         function renderUI() {
-            // 1. Calculate Global Totals
+            // 1. Calculate Global Totals & Entity Display Values
             const globalTotals = { rdps: 0, seeds: 0, qual: 0, pause: 0, proxy: 0, sessions: 0, deploysHr: 0, deploysDay: 0, lancements: 0, seedsHr: 0, seedsDay: 0 };
+            const entityDisplayValues = {}; 
             
             const activeEntityIds = Object.keys(ALL_ENTITY_CONFIGS);
             let totalQualityCount = 0;
@@ -734,33 +732,61 @@
 
             activeEntityIds.forEach(entityId => {
                 const e = appState[entityId];
-                if (!e || e.disabled) return; // Skip disabled stats
+                if (!e) return;
                 
-                const gStats = e.globalStats || {};
-
-                // Use Global Stats for requested metrics
-                globalTotals.rdps += gStats.rdps || 0;
-                globalTotals.seeds += gStats.seeds || 0;
-                globalTotals.pause += gStats.paused || 0;
-                globalTotals.proxy += gStats.proxy || 0;
+                // A. Calculate Platform Aggregates for this entity
+                let pStats = { rdps: 0, seeds: 0, quality: 0, paused: 0 };
+                const platformCount = Object.keys(e.platforms).length;
                 
-                if (gStats.quality > 0) {
-                     totalQualitySum += gStats.quality;
-                     totalQualityCount++;
-                }
-
-                // Use Platform aggregation for others
                 Object.values(e.platforms).forEach(p => {
-                    globalTotals.sessions += p.stats.sessions;
-                    globalTotals.deploysHr += p.stats.deploysHr;
-                    globalTotals.deploysDay += p.stats.deploysDay;
-                    globalTotals.lancements += p.stats.lancements;
-                    globalTotals.seedsHr += p.stats.seedsHr;
-                    globalTotals.seedsDay += p.stats.seedsDay;
+                    pStats.rdps += p.stats.rdps || 0;
+                    pStats.seeds += p.stats.seeds || 0;
+                    pStats.quality += p.stats.quality || 0;
+                    pStats.paused += p.stats.paused || 0;
+
+                    // If entity is enabled, add platform-specific metrics to global totals immediately
+                    if (!e.disabled) {
+                        globalTotals.sessions += p.stats.sessions || 0;
+                        globalTotals.deploysHr += p.stats.deploysHr || 0;
+                        globalTotals.deploysDay += p.stats.deploysDay || 0;
+                        globalTotals.lancements += p.stats.lancements || 0;
+                        globalTotals.seedsHr += p.stats.seedsHr || 0;
+                        globalTotals.seedsDay += p.stats.seedsDay || 0;
+                    }
                 });
+
+                // B. Determine Entity Header Values (Use Global Stats if available > 0, else Platform Sums)
+                const gStats = e.globalStats || {};
+                
+                const displayVals = {
+                    rdps: (gStats.rdps > 0 ? gStats.rdps : pStats.rdps) || 0,
+                    seeds: (gStats.seeds > 0 ? gStats.seeds : pStats.seeds) || 0,
+                    // Quality: Prefer Global if set, else Sum of platforms
+                    quality: (gStats.quality > 0 ? gStats.quality : pStats.quality) || 0,
+                    // Paused: Prefer Global if set, else Sum of platforms
+                    paused: (gStats.paused > 0 ? gStats.paused : pStats.paused) || 0,
+                    proxy: gStats.proxy || 0
+                };
+                
+                // Store for List Rendering
+                entityDisplayValues[entityId] = displayVals;
+
+                // C. Add to Global Totals (if enabled)
+                if (!e.disabled) {
+                    globalTotals.rdps += displayVals.rdps;
+                    globalTotals.seeds += displayVals.seeds;
+                    globalTotals.pause += displayVals.paused;
+                    globalTotals.proxy += displayVals.proxy;
+
+                    if (displayVals.quality > 0) {
+                        totalQualitySum += displayVals.quality;
+                        totalQualityCount++;
+                    }
+                }
             });
 
-            globalTotals.qual = totalQualityCount > 0 ? Math.round(totalQualitySum / totalQualityCount) : 0;
+            // D. Calculate Global TOTAL Quality (Sum of all visible qualities)
+            globalTotals.qual = totalQualitySum;
 
             // 2. Render Global Stats Grid
             document.getElementById('global-stats-grid').innerHTML = `
@@ -775,7 +801,7 @@
                 ${renderStatCard('Seeds/hour', globalTotals.seedsHr, 'text-teal-600 dark:text-teal-400')}
                 ${renderStatCard('Seeds/day', globalTotals.seedsDay, 'text-teal-600 dark:text-teal-400')}
                 
-                ${renderStatCard('Avg Quality', globalTotals.qual, 'text-purple-500 dark:text-purple-400')}
+                ${renderStatCard('Total Quality', globalTotals.qual, 'text-purple-500 dark:text-purple-400')}
                 ${renderStatCard('Paused', globalTotals.pause, 'text-rose-500 dark:text-rose-400')}
                 ${renderStatCard('Proxy', globalTotals.proxy, 'text-amber-500 dark:text-amber-400')}
             `;
@@ -792,17 +818,11 @@
                 const opacityClass = isDisabled ? 'disabled-entity' : '';
                 const isExpanded = expandedEntities.has(entityId);
                 const allPlatforms = Object.entries(entityData.platforms);
-                const activePlatforms = allPlatforms.filter(([_, data]) => data.stats.seeds > 0 || data.stats.rdps > 0);
+                // Filter to show platforms that have Seeds OR RDPs OR Quality > 0
+                const activePlatforms = allPlatforms.filter(([_, data]) => data.stats.seeds > 0 || data.stats.rdps > 0 || data.stats.quality > 0);
                 
-                // Entity Totals now come directly from globalStats
-                const gStats = entityData.globalStats || {};
-                const entityTotals = {
-                    rdps: gStats.rdps || 0,
-                    seeds: gStats.seeds || 0,
-                    qual: gStats.quality || 0,
-                    pause: gStats.paused || 0,
-                    proxy: gStats.proxy || 0
-                };
+                // Use calculated values
+                const entityTotals = entityDisplayValues[entityId];
 
                 // Platforms Grid Generation
                 let platformsHTML = '';
@@ -923,8 +943,8 @@
                         <div class="flex-1 grid grid-cols-5 gap-2 w-full max-w-2xl">
                             <div class="text-center"><span class="block text-[9px] font-bold text-blue-500 uppercase">RDPs</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.rdps}</span></div>
                             <div class="text-center"><span class="block text-[9px] font-bold text-emerald-500 uppercase">Seeds</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.seeds}</span></div>
-                            <div class="text-center"><span class="block text-[9px] font-bold text-purple-500 uppercase">Quality</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.qual}</span></div>
-                            <div class="text-center"><span class="block text-[9px] font-bold text-rose-500 uppercase">Paused</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.pause}</span></div>
+                            <div class="text-center"><span class="block text-[9px] font-bold text-purple-500 uppercase">Quality</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.quality}</span></div>
+                            <div class="text-center"><span class="block text-[9px] font-bold text-rose-500 uppercase">Paused</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.paused}</span></div>
                             <div class="text-center"><span class="block text-[9px] font-bold text-orange-500 uppercase">Proxy</span>${proxyDisplay}</div>
                         </div>
 
