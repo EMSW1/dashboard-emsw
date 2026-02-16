@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EMSW Dashboard</title>
+    <title>EMSW Dashboard - Realtime</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -11,6 +11,9 @@
         }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons for Edit/Add buttons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -41,14 +44,11 @@
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
-            
-            /* Light Mode Glass */
             background: rgba(255, 255, 255, 0.70);
             border: 1px solid rgba(0, 0, 0, 0.1);
         }
 
         .dark .glass-card {
-            /* Dark Mode Glass */
             background: rgba(15, 23, 42, 0.70);
             border: 1px solid rgba(255, 255, 255, 0.15);
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
@@ -88,91 +88,283 @@
             overflow: hidden;
         }
         .accordion-content.open {
-            max-height: 2000px; /* Arbitrary large height */
+            max-height: 5000px;
             opacity: 1;
         }
         .rotate-180 { transform: rotate(180deg); }
 
-        /* Stars styling based on mode */
-        .star-dot {
-            background-color: #94a3b8; /* Slate-400 for light mode */
+        .star-dot { background-color: #94a3b8; }
+        .dark .star-dot { background-color: #ffffff; }
+
+        /* Modal Styles */
+        dialog::backdrop {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
         }
-        .dark .star-dot {
-            background-color: #ffffff;
+        dialog {
+            background: transparent;
+            border: none;
+            padding: 0;
+            margin: auto;
         }
+        .disabled-entity {
+            opacity: 0.6;
+            filter: grayscale(1);
+        }
+        
+        /* Utility for platform grid labels */
+        .stat-label {
+            font-size: 0.6rem;
+            line-height: 1;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #64748b; /* slate-500 */
+        }
+        .dark .stat-label { color: #94a3b8; /* slate-400 */ }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "firebase/": "https://esm.sh/firebase@^12.8.0/",
+    "firebase/": "https://esm.sh/firebase@^10.13.1/",
     "react": "https://esm.sh/react@^19.2.3",
     "react/": "https://esm.sh/react@^19.2.3/"
   }
 }
 </script>
 </head>
-  <body class="min-h-screen relative p-4 md:p-8">
+  <body class="min-h-screen relative p-4 md:p-8 overflow-x-hidden">
 
-    <!-- Cosmic Background: Light gradient vs Dark gradient -->
+    <!-- Backgrounds -->
     <div class="fixed inset-0 -z-10 bg-gradient-to-br from-blue-50 via-slate-100 to-white dark:from-slate-900 dark:via-[#0f172a] dark:to-black animate-bg transition-colors duration-500"></div>
-    <div class="fixed inset-0 -z-10 opacity-60 pointer-events-none" id="stars-container">
-        <!-- Stars will be injected here via JS -->
-    </div>
+    <div class="fixed inset-0 -z-10 opacity-60 pointer-events-none" id="stars-container"></div>
 
     <!-- Main App Container -->
-    <div id="app" class="max-w-7xl mx-auto">
+    <div id="app" class="max-w-7xl mx-auto transition-all duration-500">
         <!-- Header -->
         <header class="mb-10 flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
               <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600 italic tracking-tighter drop-shadow-sm">
                 EMSW <span class="text-slate-800 dark:text-white transition-colors">DASHBOARD</span>
               </h1>
-              <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">
-                ALL STATS
-              </p>
+              <div class="flex items-center gap-2 mt-1">
+                  <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                  <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                    LIVE SYNC ACTIVE • <span id="user-role-display" class="text-blue-500">SUPER ADMIN</span>
+                  </p>
+              </div>
             </div>
             <div class="flex items-center gap-2">
-                <!-- Theme Toggle Button -->
                 <button id="theme-toggle" class="glass-card w-10 h-10 flex items-center justify-center rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-all active:scale-95 text-xl">
                     <span id="icon-sun" class="hidden">☀️</span>
                     <span id="icon-moon" class="hidden">🌙</span>
                 </button>
-                
-                <button id="refresh-btn" class="glass-card px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-black/5 dark:hover:bg-white/10 transition-all active:scale-95 text-slate-700 dark:text-white">
-                    ↻ Refresh
+                <button onclick="window.location.reload()" class="glass-card px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-black/5 dark:hover:bg-white/10 transition-all active:scale-95 text-slate-700 dark:text-white">
+                    Force Reload
                 </button>
             </div>
         </header>
 
         <!-- Global Stats Section -->
         <section class="mb-12 animate-fade-in">
-            <h2 class="text-sm font-black text-slate-500 uppercase tracking-widest mb-4 pl-2">Global Performance</h2>
-            <!-- Updated Grid to fit more stats -->
+            <h2 class="text-sm font-black text-slate-500 uppercase tracking-widest mb-4 pl-2">Global Realtime Performance</h2>
             <div id="global-stats-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                <!-- Global stats injected here -->
                 <div class="col-span-full flex justify-center py-8"><div class="loader"></div></div>
             </div>
         </section>
 
-        <!-- Entity List Section -->
+        <!-- Entity Live Monitor Section -->
         <section class="pb-20">
-            <h2 class="text-sm font-black text-slate-500 uppercase tracking-widest mb-4 pl-2">Entity Details</h2>
+            <div class="flex justify-between items-end mb-4 px-2">
+                <h2 class="text-sm font-black text-slate-500 uppercase tracking-widest">Entity Live Monitor</h2>
+                <div id="super-admin-controls" class="hidden">
+                    <button onclick="window.openNewEntityModal()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg shadow-blue-500/20">
+                        <i class="ph ph-plus-circle text-sm"></i> Add System
+                    </button>
+                </div>
+            </div>
             <div id="entities-list" class="space-y-4">
                 <!-- Entities injected here -->
             </div>
         </section>
 
         <footer class="text-center text-[10px] font-bold text-slate-500 dark:text-slate-600 uppercase pb-4">
-            Laste update :  <span id="last-updated"></span>
+            System Synchronized
         </footer>
     </div>
+
+    <!-- Edit/Add Modal (Super Admin Only) -->
+    <dialog id="editor-modal" class="backdrop:backdrop-blur-sm p-0 rounded-2xl shadow-2xl overflow-hidden max-w-lg w-full m-auto">
+        <div class="glass-card p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-black text-slate-800 dark:text-white mb-4" id="modal-title">Edit Data</h3>
+            <form id="editor-form" class="space-y-3">
+                <input type="hidden" id="edit-entity-id">
+                <input type="hidden" id="edit-platform-id">
+                <input type="hidden" id="edit-mode" value="data"> <!-- 'data', 'entity', or 'global' -->
+                
+                <!-- NEW PLATFORM FIELDS -->
+                <div id="new-platform-fields" class="space-y-3 hidden">
+                    <div id="new-platform-name-group">
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Platform Name</label>
+                        <input type="text" id="edit-name" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                </div>
+
+                <!-- EDIT GLOBAL FIELDS (For Entity Summary) -->
+                <div id="edit-global-fields" class="hidden grid grid-cols-2 gap-3">
+                    <div class="col-span-2">
+                        <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-xs text-amber-600 dark:text-amber-300 mb-2">
+                             <p class="font-bold">Edit Global Entity Stats (Live Monitor)</p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Total RDPs (glb_rdps)</label>
+                        <input type="number" id="edit-global-rdps" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Total Seeds</label>
+                        <input type="number" id="edit-global-seeds" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Quality</label>
+                        <input type="number" id="edit-global-quality" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Paused</label>
+                        <input type="number" id="edit-global-paused" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Proxy</label>
+                        <input type="number" id="edit-global-proxy" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                </div>
+
+                <!-- EDIT DATA FIELDS (Expanded) -->
+                <div id="edit-data-fields" class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Seeds</label>
+                        <input type="number" id="edit-seeds" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">RDPs</label>
+                        <input type="number" id="edit-rdps" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Sessions</label>
+                        <input type="number" id="edit-sessions" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Quality</label>
+                        <input type="number" id="edit-quality" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                     <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Paused (0/1)</label>
+                        <input type="number" id="edit-paused" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Launches</label>
+                        <input type="number" id="edit-lancements" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    
+                    <div class="col-span-full border-t border-slate-200 dark:border-slate-700 my-1"></div>
+
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Deploys/Hour</label>
+                        <input type="number" id="edit-deploysHr" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Deploys/Day</label>
+                        <input type="number" id="edit-deploysDay" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    <div></div> <!-- spacer -->
+
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Seeds/Hour</label>
+                        <input type="number" id="edit-seedsHr" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Seeds/Day</label>
+                        <input type="number" id="edit-seedsDay" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    
+                    <div class="col-span-full border-t border-slate-200 dark:border-slate-700 my-1"></div>
+                    
+                    <div class="col-span-full">
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Period (Start-End)</label>
+                        <input type="text" id="edit-period" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                    <div class="col-span-full">
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Rotation</label>
+                        <input type="text" id="edit-rotation" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+                </div>
+
+                <!-- NEW ENTITY FIELDS -->
+                <div id="new-entity-fields" class="hidden space-y-3">
+                    <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-600 dark:text-blue-300 mb-2">
+                        <p class="font-bold">Add New System</p>
+                    </div>
+
+                    <!-- Entity Type Radio Buttons -->
+                    <div class="flex gap-4 mb-2">
+                        <label class="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer">
+                            <input type="radio" name="entityType" value="api" checked onchange="toggleEntityFields()"> Connected (API)
+                        </label>
+                        <label class="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer">
+                            <input type="radio" name="entityType" value="manual" onchange="toggleEntityFields()"> Manual Entry
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Entity Name (ID)</label>
+                        <input type="text" id="new-entity-id-input" placeholder="e.g. EMS5" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
+
+                    <!-- API Config Fields -->
+                    <div id="api-config-container" class="space-y-3">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[10px] uppercase font-bold text-slate-500">API Key</label>
+                                <input type="text" id="new-entity-apikey" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                            </div>
+                            <div>
+                                <label class="text-[10px] uppercase font-bold text-slate-500">Project ID</label>
+                                <input type="text" id="new-entity-projectid" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-500">Database URL</label>
+                            <input type="text" id="new-entity-dburl" placeholder="https://..." class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                 <label class="text-[10px] uppercase font-bold text-slate-500">Auth Domain</label>
+                                 <input type="text" id="new-entity-authdomain" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                            </div>
+                            <div>
+                                 <label class="text-[10px] uppercase font-bold text-slate-500">App ID</label>
+                                 <input type="text" id="new-entity-appid" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex gap-2 mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" onclick="document.getElementById('editor-modal').close()" class="flex-1 py-2 rounded-lg text-xs font-bold uppercase bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors dark:text-white">Cancel</button>
+                    <button type="submit" class="flex-1 py-2 rounded-lg text-xs font-bold uppercase bg-blue-600 text-white hover:bg-blue-500 transition-colors shadow-lg shadow-blue-500/30">Save Data</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
 
     <!-- Application Logic -->
     <script type="module">
         import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
-        import { getDatabase, ref, get } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js';
+        import { getDatabase, ref, onValue, update, set, remove } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js';
 
-        // --- Theme Logic ---
+        // Set default to SUPER to allow full access without code
+        let userRole = 'SUPER'; 
+
+        // --- THEME LOGIC ---
         const htmlEl = document.documentElement;
         const themeBtn = document.getElementById('theme-toggle');
         const iconSun = document.getElementById('icon-sun');
@@ -187,99 +379,117 @@
                 iconMoon.classList.remove('hidden');
             }
         }
-
-        // Initialize Theme
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             htmlEl.classList.add('dark');
         } else {
             htmlEl.classList.remove('dark');
         }
         updateThemeIcons();
-
-        // Toggle Theme
         themeBtn.addEventListener('click', () => {
             htmlEl.classList.toggle('dark');
-            if (htmlEl.classList.contains('dark')) {
-                localStorage.theme = 'dark';
-            } else {
-                localStorage.theme = 'light';
-            }
+            localStorage.theme = htmlEl.classList.contains('dark') ? 'dark' : 'light';
             updateThemeIcons();
         });
 
+        // --- AUTH & MASTER DB CONSTANTS ---
+        const MASTER_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyDJ0W3pjxunTgK1jy8YNHgSYEsncgQa7zE", 
+            authDomain: "dashboard-emsw.firebaseapp.com", 
+            databaseURL: "https://dashboard-emsw-default-rtdb.firebaseio.com/", 
+            projectId: "dashboard-emsw",
+            storageBucket: "dashboard-emsw.firebasestorage.app",
+            messagingSenderId: "295410292951",
+            appId: "1:295410292951:web:f1015c207e9ad9f6a5f892",
+            measurementId: "G-ZD9NDGES3E"
+        };
 
-        // --- Configuration ---
-        const ENTITY_CONFIGS = {
+        // --- CONFIGURATION ---
+        const BUILTIN_CONFIGS = {
           EMS1: {
             apiKey: "AIzaSyCEwB2iTsirdhL6O3xymPGAt2k5yia6tjw",
             authDomain: "ems1-reporting.firebaseapp.com",
             databaseURL: "https://ems1-reporting-default-rtdb.firebaseio.com",
             projectId: "ems1-reporting",
-            storageBucket: "ems1-reporting.firebasestorage.app",
-            messagingSenderId: "649094135962",
-            appId: "1:649094135962:web:eaa6641f80c2805e8f5f23",
-            measurementId: "G-G8JF9QJ6QR"
+            appId: "1:649094135962:web:eaa6641f80c2805e8f5f23"
           },
           EMS3: {
             apiKey: "AIzaSyBp5t2-Xlxj6_XiDi6y09zbOkHYLe2X9Ls",
             authDomain: "ems3-reporting.firebaseapp.com",
             databaseURL: "https://ems3-reporting-default-rtdb.firebaseio.com",
             projectId: "ems3-reporting",
-            storageBucket: "ems3-reporting.firebasestorage.app",
-            messagingSenderId: "696098202646",
-            appId: "1:696098202646:web:8abbc6257a2982549c0137",
-            measurementId: "G-BWJNRYQK6T"
+            appId: "1:696098202646:web:8abbc6257a2982549c0137"
           },
           EMS4: {
             apiKey: "AIzaSyAFR96bibEGLaMroqFZCLcSHyCoAdewz78",
             authDomain: "ems4-reporting.firebaseapp.com",
             databaseURL: "https://ems4-reporting-default-rtdb.firebaseio.com",
             projectId: "ems4-reporting",
-            storageBucket: "ems4-reporting.firebasestorage.app",
-            messagingSenderId: "290747078412",
-            appId: "1:290747078412:web:f1ddc2273dc07cc6e55b29",
-            measurementId: "G-PTFJKHYZ1R"
+            appId: "1:290747078412:web:f1ddc2273dc07cc6e55b29"
           },
           EMS6: {
             apiKey: "AIzaSyB_aylTk3hW60y3Kewlbb4B76J3f-lx0qE",
             authDomain: "ems6-reporting.firebaseapp.com",
             databaseURL: "https://ems6-reporting-default-rtdb.firebaseio.com",
             projectId: "ems6-reporting",
-            storageBucket: "ems6-reporting.firebasestorage.app",
-            messagingSenderId: "1091962206156",
-            appId: "1:1091962206156:web:0c6c970e222403ab1f8f69",
-            measurementId: "G-JFCVVTHMNR"
+            appId: "1:1091962206156:web:0c6c970e222403ab1f8f69"
           },
           DMF: {
             apiKey: "AIzaSyBaPXh-EtZqg-cgD_RNyEx_PNisfngT8-s",
             authDomain: "dmf-reporting.firebaseapp.com",
             databaseURL: "https://dmf-reporting-default-rtdb.firebaseio.com/",
             projectId: "dmf-reporting",
-            storageBucket: "dmf-reporting.firebasestorage.app",
-            messagingSenderId: "151591156744",
-            appId: "1:151591156744:web:ec1a8c2a68b629c46ca5bd",
-            measurementId: "G-SXD0J4SVK4"
+            appId: "1:151591156744:web:ec1a8c2a68b629c46ca5bd"
           }
         };
 
-        // --- State ---
-        const state = {
-            entities: [],
-            loading: true,
-            expandedEntities: new Set()
+        // Whitelist Configuration for Active Platforms
+        const ALLOWED_PLATFORMS = {
+            'DMF': ['SELENIUM 2'],
+            'EMS1': ['SELENIUM'],
+            'EMS3': ['WEB', 'SELENIUM', 'AUTOMAT'],
+            'EMS4': ['WEB', 'SELENIUM'],
+            'EMS6': ['SELENIUM', 'AUTOMAT']
         };
 
-        // --- Improved Metric Extraction Helper ---
+        // Current active configs (starts with built-in, adds custom ones from Master DB)
+        let ALL_ENTITY_CONFIGS = { ...BUILTIN_CONFIGS };
+
+        // --- FIREBASE INITIALIZATION ---
+        // 1. Initialize Master App for Custom Entities storage
+        const masterApp = initializeApp(MASTER_FIREBASE_CONFIG, "MASTER_APP");
+        const masterDb = getDatabase(masterApp);
+
+        const initializedApps = {};
+
+        function getEntityApp(entityId) {
+            if (initializedApps[entityId]) return initializedApps[entityId];
+            const existingApps = getApps();
+            const found = existingApps.find(app => app.name === entityId);
+            initializedApps[entityId] = found ? found : initializeApp(ALL_ENTITY_CONFIGS[entityId], entityId);
+            return initializedApps[entityId];
+        }
+
+        // --- STATE MANAGEMENT ---
+        // Global store for entity data
+        const appState = {}; 
+        Object.keys(BUILTIN_CONFIGS).forEach(id => {
+            appState[id] = { globalStats: {}, platforms: {}, rawData: null, disabled: false };
+        });
+        
+        const expandedEntities = new Set();
+        const connectedEntityIds = new Set();
+        // Store disabled state for built-ins locally
+        const localDisabledStore = JSON.parse(localStorage.getItem('disabledEntities') || '{}');
+
+        // --- DATA EXTRACTION HELPER ---
         function findMetric(obj, keys, type = 'int') {
             if (!obj) return type === 'string' ? '-' : 0;
-            
             const objKeys = Object.keys(obj);
             const objKeysLower = objKeys.map(k => k.toLowerCase().trim());
             
             for (const key of keys) {
                 const searchKey = key.toLowerCase().trim();
                 const idx = objKeysLower.indexOf(searchKey);
-                
                 if (idx !== -1) {
                     const val = obj[objKeys[idx]];
                     if (val !== undefined && val !== null && val !== '') {
@@ -294,137 +504,209 @@
             return type === 'string' ? '-' : 0;
         }
 
-        // --- Firebase Service ---
-        const initializedApps = {};
+        // --- LOGIC UPDATE: processPlanData ---
+        function processPlanData(rawPlans, rootPath, entityId) {
+             const platforms = {};
+             const allowed = ALLOWED_PLATFORMS[entityId];
 
-        function getEntityApp(entityId) {
-            if (initializedApps[entityId]) return initializedApps[entityId];
-            const existingApps = getApps();
-            const found = existingApps.find(app => app.name === entityId);
-            if (found) {
-                initializedApps[entityId] = found;
-            } else {
-                initializedApps[entityId] = initializeApp(ENTITY_CONFIGS[entityId], entityId);
-            }
-            return initializedApps[entityId];
+             Object.keys(rawPlans).forEach(key => {
+                // If this entity has a whitelist, strictly enforce it
+                if (allowed && !allowed.includes(key)) return;
+
+                const planData = rawPlans[key] || {};
+                const currentData = planData.current || {};
+                
+                // ROBUSTNESS: Updated searchObj to include planData (root)
+                const searchObj = { 
+                    ...planData,
+                    ...(planData.stats || {}), 
+                    ...currentData, 
+                    ...(currentData.stats || {}) 
+                };
+
+                // Ensure we only process if there is relevant data
+                if (Object.keys(searchObj).length > 0 || planData.deploys || currentData.deploys) {
+                    
+                    // 1. Calculate Deploys/h (active deploys)
+                    let activeDeploysCount = 0;
+                    
+                    // Prioritize counting active entries in 'deploys' object (Check both root and current)
+                    let deploysObj = planData.deploys || currentData.deploys;
+                    
+                    if (deploysObj && typeof deploysObj === 'object') {
+                        // If it's an array, filter out nulls/undefined to be safe
+                        if (Array.isArray(deploysObj)) {
+                            activeDeploysCount = deploysObj.filter(d => d).length;
+                        } else {
+                            activeDeploysCount = Object.keys(deploysObj).length;
+                        }
+                    } 
+                    
+                    // Fallback to existing metric search if object count is 0
+                    if (activeDeploysCount === 0) {
+                        activeDeploysCount = findMetric(searchObj, [
+                            'nbrdeploysperhour', 'active_deploys', 'activeDeploys', 'Deploys/h', 'deploys_per_hour',
+                            'nbrdeploys', 'nbr_deploys', 'total_deploys', 'deploys'
+                        ]);
+                    }
+
+                    // 2. Get Launches
+                    const lancements = findMetric(searchObj, ['nbrlancement', 'Lancements', 'Launches', 'launches', 'lancement']);
+                    
+                    // 3. Calculate Deploys/Day = Deploys/h * Launches
+                    const calculatedDeploysDay = activeDeploysCount * lancements;
+
+                    // Extract all requested metrics
+                    const stats = {
+                            seeds: findMetric(searchObj, ['Seeds', 'seeds', 'SEEDS', 'nbrseeds']),
+                            rdps: findMetric(searchObj, ['RDPs', 'rdps', 'RDP', 'nbrrdp']),
+                            sessions: findMetric(searchObj, ['Sessions', 'sessions', 'nbrsession']),
+                            deploysHr: activeDeploysCount,
+                            deploysDay: calculatedDeploysDay,
+                            seedsHr: findMetric(searchObj, ['nbrseedsperhour', 'Seeds/h', 'Seeds/Hour', 'seedsHr']),
+                            seedsDay: findMetric(searchObj, ['nbrseedsperday', 'Seeds/d', 'Seeds/Day', 'seedsDay']),
+                            lancements: lancements,
+                            quality: findMetric(searchObj, ['Quality', 'quality', 'Qual']),
+                            paused: findMetric(searchObj, ['Paused', 'paused', 'Pause']),
+                            period: findMetric(searchObj, ['period', 'Period', 'date_range'], 'string'),
+                            rotation: findMetric(searchObj, ['Rotation', 'rotation'], 'string')
+                    };
+                    
+                    platforms[key] = {
+                        stats: stats,
+                        updatedAt: currentData.updatedAt || planData.updatedAt || '',
+                        path: `${rootPath}/plans/${key}`
+                    };
+                }
+            });
+            return platforms;
         }
 
-        async function fetchEntityData(entityId) {
+        // --- ENTITY LISTENER LOGIC ---
+        function connectEntity(entityId) {
+            if (connectedEntityIds.has(entityId)) return;
+            
+            // Check disabled state
+            const config = ALL_ENTITY_CONFIGS[entityId];
+            const isDisabled = config.disabled || localDisabledStore[entityId];
+            
+            if (!appState[entityId]) {
+                appState[entityId] = { globalStats: {}, platforms: {}, rawData: null, disabled: isDisabled };
+            } else {
+                appState[entityId].disabled = isDisabled;
+            }
+
             try {
+                // Handle MANUAL entities (stored in Master DB)
+                if (config && config.manual) {
+                    const manualRoot = `manual_data/${entityId}`;
+                    const manualPlansRef = ref(masterDb, `${manualRoot}/plans`);
+                    const manualGlobalRef = ref(masterDb, `${manualRoot}/global_stats`);
+
+                    onValue(manualPlansRef, (snapshot) => {
+                         const rawPlans = snapshot.val() || {};
+                         const platforms = processPlanData(rawPlans, `${entityId}/plans`, entityId);
+                         appState[entityId].platforms = platforms;
+                         requestRender();
+                    });
+                    
+                    // Fetch Manual Global Stats
+                    onValue(manualGlobalRef, (snapshot) => {
+                         const val = snapshot.val() || {};
+                         appState[entityId].globalStats = {
+                             rdps: findMetric(val, ['glb_rdps', 'Total RDPs', 'RDPs'], 'int'),
+                             seeds: findMetric(val, ['Total Seeds', 'Seeds', 'SEEDS'], 'int'),
+                             quality: findMetric(val, ['Qualite', 'Quality'], 'int'),
+                             paused: findMetric(val, ['Paused'], 'int'),
+                             proxy: findMetric(val, ['proxy', 'Proxy'], 'int')
+                         };
+                         requestRender();
+                    });
+
+                    connectedEntityIds.add(entityId);
+                    return;
+                }
+
+                // Handle CONNECTED entities (Remote Firebase)
                 const app = getEntityApp(entityId);
                 const db = getDatabase(app);
                 const rootPath = entityId.toLowerCase();
+                
+                const plansRef = ref(db, `${rootPath}/plans`);
+                const globalRef = ref(db, `${rootPath}/global_stats`);
 
-                const [globalSnap, plansSnap] = await Promise.all([
-                    get(ref(db, `${rootPath}/global_stats`)),
-                    get(ref(db, `${rootPath}/plans`))
-                ]);
-
-                // 1. Extract Global Stats
-                const globalRaw = globalSnap.exists() ? globalSnap.val() : {};
-                const globalStats = {
-                    rdps: findMetric(globalRaw, ['rdps', 'RDPs', 'RDP'], 'int'),
-                    seeds: findMetric(globalRaw, ['seeds', 'Seeds', 'SEEDS'], 'int'),
-                    qual: findMetric(globalRaw, ['qual', 'quality', 'QUALITY', 'Quality'], 'int'),
-                    pause: findMetric(globalRaw, ['pause', 'paused', 'PAUSED', 'Paused'], 'int'),
-                    proxy: findMetric(globalRaw, ['proxy', 'Proxy', 'PROXY'], 'int')
-                };
-
-                // 2. Extract Platform Details
-                const plansRaw = plansSnap.exists() ? plansSnap.val() : {};
-                const platforms = {};
-
-                Object.keys(plansRaw).forEach(key => {
-                    if (key === 'SELENIUM_BRAVE' || key === 'SELENIUM_CHROME') return;
-
-                    const planData = plansRaw[key] || {};
-                    const currentData = planData.current || {};
-                    
-                    const searchObj = { 
-                        ...(planData.stats || {}),
-                        ...currentData, 
-                        ...(currentData.stats || {}) 
-                    };
-
-                    if (Object.keys(searchObj).length > 0 || planData.deploys) {
-                        
-                        let calculatedRotation = '-';
-                        const rotMin = searchObj.rotMin || searchObj.rotmin || searchObj.RotMin;
-                        const rotMax = searchObj.rotMax || searchObj.rotmax || searchObj.RotMax;
-                        if (rotMin !== undefined && rotMax !== undefined) {
-                            calculatedRotation = `${rotMin}-${rotMax}`;
-                        }
-                        let finalRotation = calculatedRotation !== '-' ? calculatedRotation : findMetric(searchObj, ['Rotation', 'rotation', 'Rotation (min-max)', 'Rotations'], 'string');
-
-                        let activeDeploysCount = 0;
-                        if (planData.deploys && typeof planData.deploys === 'object') {
-                            activeDeploysCount = Object.keys(planData.deploys).length;
-                        } else {
-                            activeDeploysCount = findMetric(searchObj, [
-                                'nbrdeploysperhour', 'nbr_deploys_per_hour',
-                                'active_deploys', 'nbr_active_deploys', 'activeDeploys',
-                                'Deploys/h'
-                            ]);
-                        }
-
-                        const stats = {
-                             seeds: findMetric(searchObj, ['Seeds', 'seeds', 'SEEDS']),
-                             rdps: findMetric(searchObj, ['RDPs', 'rdps', 'RDP']),
-                             sessions: findMetric(searchObj, ['Sessions', 'sessions']),
-                             deploysHr: activeDeploysCount,
-                             deploysDay: findMetric(searchObj, [
-                                'nbrseploysperday', 'nbrdeploysperday', 'nbr_deploys_per_day',
-                                'Deploys/d', 'Deploys/Day', 'daily_deploys'
-                             ]),
-                             seedsHr: findMetric(searchObj, [
-                                'nbrseedsperhour', 'nbr_seeds_per_hour',
-                                'Seeds/h', 'Seeds/Hour'
-                             ]),
-                             seedsDay: findMetric(searchObj, [
-                                'nbrseedsperday', 'nbr_seeds_per_day',
-                                'Seeds/d', 'Seeds/Day'
-                             ]),
-                             lancements: findMetric(searchObj, [
-                                'nbrlancement', 'nbr_lancement',
-                                'Lancements', 'Launches'
-                             ]),
-                             quality: findMetric(searchObj, ['Quality', 'quality', 'Qual', 'qual']),
-                             paused: findMetric(searchObj, ['Paused', 'paused', 'Pause', 'pause']),
-                             qualityPeriod: findMetric(searchObj, ['period', 'Period', 'Periode', 'période'], 'string'),
-                             rotation: finalRotation
-                        };
-                        
-                        platforms[key] = {
-                            stats: stats,
-                            updatedAt: currentData.updatedAt || planData.updatedAt || ''
-                        };
-                    }
+                onValue(plansRef, (snapshot) => {
+                    const rawPlans = snapshot.val() || {};
+                    const platforms = processPlanData(rawPlans, rootPath, entityId);
+                    appState[entityId].platforms = platforms;
+                    requestRender();
                 });
 
-                return {
-                    id: entityId,
-                    globalStats: globalStats,
-                    platforms: platforms,
-                    error: null
-                };
-            } catch (error) {
-                console.error(`Failed to load ${entityId}`, error);
-                return {
-                    id: entityId,
-                    globalStats: { rdps: 0, seeds: 0, qual: 0, pause: 0, proxy: 0 },
-                    platforms: {},
-                    error: error.message
-                };
+                // Listener for Global Stats
+                onValue(globalRef, (snapshot) => {
+                    const val = snapshot.val() || {};
+                    appState[entityId].globalStats = {
+                        rdps: findMetric(val, ['glb_rdps', 'Total RDPs', 'RDPs'], 'int'),
+                        seeds: findMetric(val, ['Total Seeds', 'Seeds', 'SEEDS'], 'int'),
+                        quality: findMetric(val, ['Qualite', 'Quality'], 'int'),
+                        paused: findMetric(val, ['Paused'], 'int'),
+                        proxy: findMetric(val, ['proxy', 'Proxy', 'PROXY'], 'int')
+                    };
+                    requestRender();
+                });
+
+                connectedEntityIds.add(entityId);
+            } catch (e) {
+                console.error("Connection error for " + entityId, e);
             }
         }
 
-        // --- UI Rendering Helpers ---
+        // --- MAIN INIT FUNCTION ---
+        function setupRealtimeListeners() {
+            // 1. Connect Built-ins
+            Object.keys(BUILTIN_CONFIGS).forEach(id => connectEntity(id));
 
-        function renderStatCard(label, value, colorClass, icon) {
-            return `
+            // 2. Listen to Master DB for custom entities
+            const customEntitiesRef = ref(masterDb, 'custom_entities');
+            onValue(customEntitiesRef, (snapshot) => {
+                const customData = snapshot.val() || {};
+                
+                const currentCustomIds = Object.keys(ALL_ENTITY_CONFIGS).filter(id => !BUILTIN_CONFIGS[id]);
+                const newCustomIds = Object.keys(customData);
+
+                // Remove deleted
+                currentCustomIds.forEach(id => {
+                    if (!customData[id]) {
+                        delete ALL_ENTITY_CONFIGS[id];
+                        delete appState[id];
+                        connectedEntityIds.delete(id);
+                    }
+                });
+
+                // Add/Update new
+                newCustomIds.forEach(id => {
+                    ALL_ENTITY_CONFIGS[id] = customData[id];
+                    connectEntity(id); 
+                });
+
+                requestRender();
+            });
+        }
+
+        // --- DEBOUNCED RENDER ---
+        let renderTimeout;
+        function requestRender() {
+            if (renderTimeout) cancelAnimationFrame(renderTimeout);
+            renderTimeout = requestAnimationFrame(renderUI);
+        }
+
+        // --- UI RENDERING HELPERS ---
+
+        function renderStatCard(label, value, colorClass) {
+             return `
                 <div class="glass-card p-4 rounded-2xl flex flex-col items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 transition-colors group">
-                    <div class="text-xs font-black uppercase tracking-wider mb-1 ${colorClass} opacity-80 group-hover:opacity-100 whitespace-nowrap">
-                        <span class="mr-1">${icon}</span> ${label}
+                    <div class="text-[10px] font-black uppercase tracking-wider mb-1 ${colorClass} opacity-80 group-hover:opacity-100 whitespace-nowrap">
+                        ${label}
                     </div>
                     <div class="text-3xl font-black ${colorClass} drop-shadow-md">
                         ${value || 0}
@@ -433,144 +715,221 @@
             `;
         }
 
-        function renderEntityRow(entity) {
-            const isExpanded = state.expandedEntities.has(entity.id);
-            
-            const allPlatforms = Object.entries(entity.platforms);
-            const activePlatforms = allPlatforms.filter(([_, data]) => data.stats.seeds > 0);
-            
-            const activeCount = activePlatforms.length;
-            const shortName = entity.id.replace('EMS', 'E').replace('DMF', 'D');
+        function renderMiniMetric(label, value, colorClass) {
+            return `
+            <div class="bg-slate-300/50 dark:bg-slate-900/30 p-2 rounded text-center flex flex-col items-center justify-center">
+                <span class="stat-label mb-1">${label}</span>
+                <span class="font-mono font-bold text-sm ${colorClass}">${value}</span>
+            </div>
+            `;
+        }
 
-            let platformsHTML = '';
-            if (activePlatforms.length === 0) {
-                 if (allPlatforms.length === 0) {
-                     platformsHTML = `<div class="col-span-full text-center py-4 text-slate-500 text-xs italic">No active platforms found or permission denied.</div>`;
-                 } else {
-                     platformsHTML = `<div class="col-span-full text-center py-4 text-slate-500 text-xs italic">No platforms with active seeds.</div>`;
-                 }
-            } else {
-                activePlatforms.forEach(([platName, data]) => {
-                    const time = data.updatedAt ? (data.updatedAt.split(' ')[1] || data.updatedAt) : '';
-                    platformsHTML += `
-                        <div class="bg-slate-200/50 dark:bg-slate-800/40 rounded-xl p-4 border border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/10 transition-colors flex flex-col h-full">
-                            <div class="flex justify-between items-start mb-4">
-                                <h4 class="font-black text-sm text-indigo-500 dark:text-indigo-300 uppercase truncate pr-2" title="${platName}">${platName}</h4>
+        function renderUI() {
+            // 1. Calculate Global Totals
+            const globalTotals = { rdps: 0, seeds: 0, qual: 0, pause: 0, proxy: 0, sessions: 0, deploysHr: 0, deploysDay: 0, lancements: 0, seedsHr: 0, seedsDay: 0 };
+            
+            const activeEntityIds = Object.keys(ALL_ENTITY_CONFIGS);
+            let totalQualityCount = 0;
+            let totalQualitySum = 0;
+
+            activeEntityIds.forEach(entityId => {
+                const e = appState[entityId];
+                if (!e || e.disabled) return; // Skip disabled stats
+                
+                const gStats = e.globalStats || {};
+
+                // Use Global Stats for requested metrics
+                globalTotals.rdps += gStats.rdps || 0;
+                globalTotals.seeds += gStats.seeds || 0;
+                globalTotals.pause += gStats.paused || 0;
+                globalTotals.proxy += gStats.proxy || 0;
+                
+                if (gStats.quality > 0) {
+                     totalQualitySum += gStats.quality;
+                     totalQualityCount++;
+                }
+
+                // Use Platform aggregation for others
+                Object.values(e.platforms).forEach(p => {
+                    globalTotals.sessions += p.stats.sessions;
+                    globalTotals.deploysHr += p.stats.deploysHr;
+                    globalTotals.deploysDay += p.stats.deploysDay;
+                    globalTotals.lancements += p.stats.lancements;
+                    globalTotals.seedsHr += p.stats.seedsHr;
+                    globalTotals.seedsDay += p.stats.seedsDay;
+                });
+            });
+
+            globalTotals.qual = totalQualityCount > 0 ? Math.round(totalQualitySum / totalQualityCount) : 0;
+
+            // 2. Render Global Stats Grid
+            document.getElementById('global-stats-grid').innerHTML = `
+                ${renderStatCard('Total RDPs', globalTotals.rdps, 'text-blue-500 dark:text-blue-400')}
+                ${renderStatCard('Total Seeds', globalTotals.seeds, 'text-emerald-600 dark:text-emerald-400')}
+                ${renderStatCard('Total Sessions', globalTotals.sessions, 'text-slate-700 dark:text-white')}
+                
+                ${renderStatCard('Deploys/hour', globalTotals.deploysHr, 'text-indigo-500 dark:text-indigo-400')}
+                ${renderStatCard('Deploys/day', globalTotals.deploysDay, 'text-indigo-500 dark:text-indigo-400')}
+                ${renderStatCard('Launches', globalTotals.lancements, 'text-orange-500 dark:text-orange-400')}
+                
+                ${renderStatCard('Seeds/hour', globalTotals.seedsHr, 'text-teal-600 dark:text-teal-400')}
+                ${renderStatCard('Seeds/day', globalTotals.seedsDay, 'text-teal-600 dark:text-teal-400')}
+                
+                ${renderStatCard('Avg Quality', globalTotals.qual, 'text-purple-500 dark:text-purple-400')}
+                ${renderStatCard('Paused', globalTotals.pause, 'text-rose-500 dark:text-rose-400')}
+                ${renderStatCard('Proxy', globalTotals.proxy, 'text-amber-500 dark:text-amber-400')}
+            `;
+
+            // 3. Render Entities List
+            const listHtml = activeEntityIds.map(entityId => {
+                const entityData = appState[entityId];
+                if (!entityData) return ''; 
+
+                const isDisabled = entityData.disabled;
+                const isManual = ALL_ENTITY_CONFIGS[entityId].manual;
+                
+                // If disabled, just show header with opacity
+                const opacityClass = isDisabled ? 'disabled-entity' : '';
+                const isExpanded = expandedEntities.has(entityId);
+                const allPlatforms = Object.entries(entityData.platforms);
+                const activePlatforms = allPlatforms.filter(([_, data]) => data.stats.seeds > 0 || data.stats.rdps > 0);
+                
+                // Entity Totals now come directly from globalStats
+                const gStats = entityData.globalStats || {};
+                const entityTotals = {
+                    rdps: gStats.rdps || 0,
+                    seeds: gStats.seeds || 0,
+                    qual: gStats.quality || 0,
+                    pause: gStats.paused || 0,
+                    proxy: gStats.proxy || 0
+                };
+
+                // Platforms Grid Generation
+                let platformsHTML = '';
+                const platformListToRender = userRole === 'SUPER' ? allPlatforms : activePlatforms;
+                
+                if (platformListToRender.length === 0) {
+                     platformsHTML = `<div class="col-span-full text-center py-4 text-slate-500 text-xs italic">No active data available.</div>`;
+                } else {
+                    platformListToRender.forEach(([pName, pData]) => {
+                        const s = pData.stats;
+                        const time = pData.updatedAt ? (pData.updatedAt.split(' ')[1] || pData.updatedAt) : '';
+                        
+                        const editBtn = userRole === 'SUPER' ? `
+                            <button onclick="window.openEditModal('${entityId}', '${pName}')" class="absolute top-2 right-2 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-400 hover:text-blue-500 transition-colors z-10">
+                                <i class="ph ph-pencil-simple"></i>
+                            </button>
+                        ` : '';
+
+                        // Detailed Platform Card Layout
+                        platformsHTML += `
+                        <div class="relative bg-slate-200/50 dark:bg-slate-800/40 rounded-xl p-4 border border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/10 transition-colors flex flex-col h-full group">
+                            ${editBtn}
+                            <div class="flex justify-between items-start mb-3 pr-6">
+                                <h4 class="font-black text-sm text-indigo-500 dark:text-indigo-300 uppercase truncate max-w-[70%]" title="${pName}">${pName}</h4>
                                 ${time ? `<span class="text-[9px] text-slate-500 bg-white/50 dark:bg-slate-900/50 px-2 py-0.5 rounded whitespace-nowrap">${time}</span>` : ''}
                             </div>
                             
-                            <div class="mt-auto">
-                                <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2 pb-1 border-b border-black/5 dark:border-white/5">Performance Stats</div>
-                                <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-                                    
-                                    <!-- Seeds -->
-                                    <div class="flex flex-col bg-slate-300/50 dark:bg-slate-900/30 p-2 rounded items-center justify-center">
-                                        <span class="text-slate-500 font-bold text-[9px] uppercase">Seeds</span>
-                                        <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">${data.stats.seeds}</span>
-                                    </div>
-                                    <!-- RDPs -->
-                                    <div class="flex flex-col bg-slate-300/50 dark:bg-slate-900/30 p-2 rounded items-center justify-center">
-                                        <span class="text-slate-500 font-bold text-[9px] uppercase">RDPs</span>
-                                        <span class="font-mono font-bold text-blue-600 dark:text-blue-400 text-sm">${data.stats.rdps}</span>
-                                    </div>
-                                    <!-- Sessions -->
-                                    <div class="flex flex-col bg-slate-300/50 dark:bg-slate-900/30 p-2 rounded items-center justify-center">
-                                        <span class="text-slate-500 font-bold text-[9px] uppercase">Sessions</span>
-                                        <span class="font-mono font-bold text-slate-700 dark:text-white text-sm">${data.stats.sessions}</span>
-                                    </div>
-                                    
-                                    <!-- Deploys/day -->
-                                    <div class="flex flex-col bg-slate-300/50 dark:bg-slate-900/30 p-2 rounded items-center justify-center">
-                                        <span class="text-slate-500 font-bold text-[9px] uppercase">Deploys/day</span>
-                                        <span class="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-sm">${data.stats.deploysDay}</span>
-                                    </div>
-                                    
-                                    <!-- Seeds/h -->
-                                    <div class="flex flex-col bg-slate-300/50 dark:bg-slate-900/30 p-2 rounded items-center justify-center">
-                                        <span class="text-slate-500 font-bold text-[9px] uppercase">Seeds/h</span>
-                                        <span class="font-mono font-bold text-teal-600 dark:text-teal-400 text-sm">${data.stats.seedsHr}</span>
-                                    </div>
-                                    <!-- Seeds/day -->
-                                    <div class="flex flex-col bg-slate-300/50 dark:bg-slate-900/30 p-2 rounded items-center justify-center">
-                                        <span class="text-slate-500 font-bold text-[9px] uppercase">Seeds/day</span>
-                                        <span class="font-mono font-bold text-teal-600 dark:text-teal-400 text-sm">${data.stats.seedsDay}</span>
-                                    </div>
-                                    <!-- Lancements -->
-                                    <div class="flex flex-col bg-slate-300/50 dark:bg-slate-900/30 p-2 rounded items-center justify-center">
-                                        <span class="text-slate-500 font-bold text-[9px] uppercase">Lancements</span>
-                                        <span class="font-mono font-bold text-slate-700 dark:text-white text-sm">${data.stats.lancements}</span>
-                                    </div>
-                                    
-                                    <!-- Qualité -->
-                                    <div class="flex flex-col bg-slate-300/50 dark:bg-slate-900/30 p-2 rounded items-center justify-center">
-                                        <span class="text-slate-500 font-bold text-[9px] uppercase">Quality</span>
-                                        <span class="font-mono font-bold text-purple-600 dark:text-purple-400 text-sm">${data.stats.quality}</span>
-                                    </div>
-                                    <!-- Paused -->
-                                    <div class="flex flex-col bg-slate-300/50 dark:bg-slate-900/30 p-2 rounded items-center justify-center">
-                                        <span class="text-slate-500 font-bold text-[9px] uppercase">Paused</span>
-                                        <span class="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">${data.stats.paused}</span>
-                                    </div>
-
-                                    <!-- Period -->
-                                    <div class="col-span-2 flex flex-col bg-slate-300/50 dark:bg-slate-900/30 p-2 rounded items-center justify-center">
-                                        <span class="text-slate-500 font-bold text-[9px] uppercase">Period</span>
-                                        <span class="font-mono font-bold text-purple-600 dark:text-purple-300 text-[10px] text-center truncate w-full" title="${data.stats.qualityPeriod}">${data.stats.qualityPeriod}</span>
-                                    </div>
-                                    <!-- Rotation -->
-                                    <div class="flex flex-col bg-slate-300/50 dark:bg-slate-900/30 p-2 rounded items-center justify-center">
-                                        <span class="text-slate-500 font-bold text-[9px] uppercase">Rotation</span>
-                                        <span class="font-mono font-bold text-orange-600 dark:text-orange-400 text-[10px] text-center truncate w-full" title="${data.stats.rotation}">${data.stats.rotation}</span>
-                                    </div>
-
+                            <!-- Metric Grid: 10 main metrics -->
+                            <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-auto">
+                                ${renderMiniMetric('Seeds', s.seeds, 'text-emerald-600 dark:text-emerald-400')}
+                                ${renderMiniMetric('RDPs', s.rdps, 'text-blue-600 dark:text-blue-400')}
+                                ${renderMiniMetric('Sessions', s.sessions, 'text-slate-600 dark:text-slate-300')}
+                                
+                                ${renderMiniMetric('Seeds/h', s.seedsHr, 'text-teal-600 dark:text-teal-400')}
+                                ${renderMiniMetric('Seeds/d', s.seedsDay, 'text-teal-600 dark:text-teal-400')}
+                                ${renderMiniMetric('Launches', s.lancements, 'text-orange-500 dark:text-orange-400')}
+                                
+                                ${renderMiniMetric('Deploys/h', s.deploysHr, 'text-indigo-600 dark:text-indigo-400')}
+                                ${renderMiniMetric('Deploys/d', s.deploysDay, 'text-indigo-600 dark:text-indigo-400')}
+                                ${renderMiniMetric('Quality', s.quality, 'text-purple-600 dark:text-purple-400')}
+                                
+                                <div class="col-span-1 lg:col-span-3">
+                                    ${renderMiniMetric('Paused', s.paused, s.paused > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400')}
                                 </div>
                             </div>
+
+                            <!-- Footer: Text info (Period, Rotation) -->
+                            <div class="mt-3 space-y-2 pt-3 border-t border-slate-300/50 dark:border-slate-700/50">
+                                <div class="flex justify-between items-center text-[10px]">
+                                    <span class="text-slate-500 font-bold uppercase">Period</span>
+                                    <span class="font-mono text-slate-700 dark:text-slate-300 truncate max-w-[140px]" title="${s.period}">${s.period || '-'}</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[10px]">
+                                    <span class="text-slate-500 font-bold uppercase">Rotation</span>
+                                    <span class="font-mono text-slate-700 dark:text-slate-300 truncate max-w-[140px]" title="${s.rotation}">${s.rotation || '-'}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                }
+
+                let addBtn = '';
+                if (userRole === 'SUPER') {
+                    addBtn = `
+                        <button onclick="window.openAddPlatformModal('${entityId}')" class="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 text-slate-400 hover:text-blue-500 transition-all min-h-[280px] group">
+                            <i class="ph ph-plus-circle text-3xl mb-2 group-hover:scale-110 transition-transform"></i>
+                            <span class="text-xs font-bold uppercase">Add Platform</span>
+                        </button>
+                    `;
+                }
+
+                // Controls: Disable and Delete
+                const isBuiltIn = !!BUILTIN_CONFIGS[entityId];
+                let controlsBtn = '';
+                if (userRole === 'SUPER') {
+                    const deleteBtn = !isBuiltIn ? `
+                        <button onclick="event.stopPropagation(); window.deleteEntity('${entityId}')" class="text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 p-2 bg-rose-500/10 rounded-full hover:bg-rose-500/20 transition-colors" title="Delete">
+                            <i class="ph ph-trash text-lg"></i>
+                        </button>` : '';
+                    
+                    const toggleStateBtn = `
+                        <button onclick="event.stopPropagation(); window.toggleEntityState('${entityId}')" class="${isDisabled ? 'text-slate-400' : 'text-green-500'} p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors" title="${isDisabled ? 'Enable' : 'Disable'}">
+                            <i class="ph ${isDisabled ? 'ph-toggle-left' : 'ph-toggle-right'} text-2xl"></i>
+                        </button>
+                    `;
+
+                    controlsBtn = `
+                        <div class="absolute top-6 right-16 flex items-center gap-2 z-20">
+                            ${toggleStateBtn}
+                            ${deleteBtn}
                         </div>
                     `;
-                });
-            }
+                }
 
-            return `
-                <div class="glass-card rounded-[2rem] overflow-hidden mb-6 animate-fade-in border-t-4 border-indigo-500 transition-all duration-300">
-                    <div class="p-6 flex flex-col md:flex-row items-center justify-between gap-6 cursor-pointer bg-slate-100/40 dark:bg-slate-900/40 hover:bg-slate-200/40 dark:hover:bg-slate-900/60 transition-colors" onclick="window.toggleEntity('${entity.id}')">
+                // Manual Global Stats Edit Button
+                let proxyDisplay = `<span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.proxy}</span>`;
+                if (isManual && userRole === 'SUPER' && !isDisabled) {
+                    proxyDisplay += `
+                        <button onclick="event.stopPropagation(); window.openGlobalStatsModal('${entityId}')" class="ml-1 text-xs text-slate-400 hover:text-blue-500"><i class="ph ph-pencil-simple"></i></button>
+                    `;
+                }
+
+                return `
+                <div class="glass-card rounded-[2rem] overflow-hidden mb-6 animate-fade-in border-t-4 ${isDisabled ? 'border-slate-400' : 'border-indigo-500'} transition-all duration-300 relative ${opacityClass}">
+                    ${controlsBtn}
+                    <div class="p-6 flex flex-col md:flex-row items-center justify-between gap-6 cursor-pointer bg-slate-100/40 dark:bg-slate-900/40 hover:bg-slate-200/40 dark:hover:bg-slate-900/60 transition-colors" onclick="window.toggleEntity('${entityId}')">
                         
                         <div class="flex items-center gap-4 min-w-[150px]">
-                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg ring-2 ring-black/5 dark:ring-white/10">
-                                <span class="font-black text-white text-lg">${shortName}</span>
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br ${isDisabled ? 'from-slate-400 to-slate-500' : 'from-indigo-500 to-blue-600'} flex items-center justify-center shadow-lg ring-2 ring-black/5 dark:ring-white/10">
+                                <span class="font-black text-white text-lg">${entityId.replace(/(EMS|DMF)/, '$1'[0])}</span>
                             </div>
                             <div>
-                                <h2 class="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">${entity.id}</h2>
-                                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">${activeCount} ACTIVE PLATFORMS</span>
+                                <h2 class="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">${entityId} ${isDisabled ? '<span class="text-xs font-normal text-red-500 uppercase ml-2">(Inactive)</span>' : ''}</h2>
+                                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">${activePlatforms.length} Active • ${allPlatforms.length} Total</span>
                             </div>
                         </div>
 
-                        <div class="flex-1 grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
-                            <div class="text-center">
-                                <span class="block text-[9px] font-bold text-blue-500 dark:text-blue-400 uppercase">RDPs</span>
-                                <span class="text-lg font-black text-slate-700 dark:text-white">${entity.globalStats.rdps || 0}</span>
-                            </div>
-                            <div class="text-center">
-                                <span class="block text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Seeds</span>
-                                <span class="text-lg font-black text-emerald-600 dark:text-emerald-400">${entity.globalStats.seeds || 0}</span>
-                            </div>
-                            <div class="text-center">
-                                <span class="block text-[9px] font-bold text-purple-500 dark:text-purple-400 uppercase">Quality</span>
-                                <span class="text-lg font-black text-slate-700 dark:text-white">${entity.globalStats.qual || 0}</span>
-                            </div>
-                            <div class="text-center">
-                                <span class="block text-[9px] font-bold text-rose-500 dark:text-rose-400 uppercase">Paused</span>
-                                <span class="text-lg font-black text-rose-600 dark:text-rose-400">${entity.globalStats.pause || 0}</span>
-                            </div>
-                            <div class="text-center">
-                                <span class="block text-[9px] font-bold text-orange-500 dark:text-orange-400 uppercase">Proxy</span>
-                                <span class="text-lg font-black text-slate-700 dark:text-white">${entity.globalStats.proxy || 0}</span>
-                            </div>
+                        <div class="flex-1 grid grid-cols-5 gap-2 w-full max-w-2xl">
+                            <div class="text-center"><span class="block text-[9px] font-bold text-blue-500 uppercase">RDPs</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.rdps}</span></div>
+                            <div class="text-center"><span class="block text-[9px] font-bold text-emerald-500 uppercase">Seeds</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.seeds}</span></div>
+                            <div class="text-center"><span class="block text-[9px] font-bold text-purple-500 uppercase">Quality</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.qual}</span></div>
+                            <div class="text-center"><span class="block text-[9px] font-bold text-rose-500 uppercase">Paused</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.pause}</span></div>
+                            <div class="text-center"><span class="block text-[9px] font-bold text-orange-500 uppercase">Proxy</span>${proxyDisplay}</div>
                         </div>
 
                         <div class="transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}">
-                            <svg class="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                            </svg>
+                            <i class="ph ph-caret-down text-xl text-slate-400"></i>
                         </div>
                     </div>
 
@@ -578,140 +937,274 @@
                         <div class="p-6 bg-slate-50/50 dark:bg-slate-950/30 border-t border-black/5 dark:border-white/5">
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                 ${platformsHTML}
+                                ${addBtn}
                             </div>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
+            }).join('');
+
+            document.getElementById('entities-list').innerHTML = listHtml;
+            
+            // Show/Hide Super Admin Controls
+            if (userRole === 'SUPER') {
+                document.getElementById('super-admin-controls').classList.remove('hidden');
+            } else {
+                document.getElementById('super-admin-controls').classList.add('hidden');
+            }
         }
 
-        // --- Main Logic ---
+        // --- HTML INTERACTION HANDLERS ---
+        window.toggleEntity = (id) => {
+            if (expandedEntities.has(id)) expandedEntities.delete(id);
+            else expandedEntities.add(id);
+            renderUI();
+        };
 
-        async function loadData() {
-            const refreshBtn = document.getElementById('refresh-btn');
-            refreshBtn.innerHTML = 'Syncing...';
-            refreshBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        window.toggleEntityFields = () => {
+             const type = document.querySelector('input[name="entityType"]:checked').value;
+             const container = document.getElementById('api-config-container');
+             if (type === 'api') container.classList.remove('hidden');
+             else container.classList.add('hidden');
+        };
+
+        // --- EDITOR LOGIC (SUPER ADMIN) ---
+        function setModalView(mode) {
+             const editFields = document.getElementById('edit-data-fields');
+             const newPlatFields = document.getElementById('new-platform-fields');
+             const newEntityFields = document.getElementById('new-entity-fields');
+             const globalFields = document.getElementById('edit-global-fields');
+             document.getElementById('edit-mode').value = mode;
+
+             // Hide all first
+             editFields.classList.add('hidden');
+             newPlatFields.classList.add('hidden');
+             newEntityFields.classList.add('hidden');
+             globalFields.classList.add('hidden');
+
+             if (mode === 'data') {
+                 editFields.classList.remove('hidden');
+             } else if (mode === 'platform') {
+                 editFields.classList.remove('hidden'); 
+                 newPlatFields.classList.remove('hidden');
+             } else if (mode === 'entity') {
+                 newEntityFields.classList.remove('hidden');
+                 document.querySelector('input[name="entityType"][value="api"]').checked = true;
+                 window.toggleEntityFields();
+             } else if (mode === 'global') {
+                 globalFields.classList.remove('hidden');
+             }
+        }
+
+        window.openEditModal = (entityId, platformKey) => {
+            const data = appState[entityId].platforms[platformKey];
+            const stats = data.stats;
             
-            state.loading = true;
+            document.getElementById('modal-title').innerText = `Edit: ${platformKey}`;
+            document.getElementById('edit-entity-id').value = entityId;
+            document.getElementById('edit-platform-id').value = platformKey;
             
-            // Render basic loader
-            if (state.entities.length === 0) {
-                 document.getElementById('entities-list').innerHTML = `
-                    <div class="text-center py-20">
-                        <div class="loader mx-auto mb-4"></div>
-                        <p class="text-slate-400 font-bold uppercase text-xs">Establishing Secure Connections...</p>
-                    </div>
-                 `;
+            // Populate
+            document.getElementById('edit-seeds').value = stats.seeds || 0;
+            document.getElementById('edit-rdps').value = stats.rdps || 0;
+            document.getElementById('edit-sessions').value = stats.sessions || 0;
+            document.getElementById('edit-quality').value = stats.quality || 0;
+            document.getElementById('edit-deploysHr').value = stats.deploysHr || 0;
+            document.getElementById('edit-paused').value = stats.paused || 0;
+            document.getElementById('edit-deploysDay').value = stats.deploysDay || 0;
+            document.getElementById('edit-seedsHr').value = stats.seedsHr || 0;
+            document.getElementById('edit-seedsDay').value = stats.seedsDay || 0;
+            document.getElementById('edit-lancements').value = stats.lancements || 0;
+            document.getElementById('edit-period').value = stats.period || '';
+            document.getElementById('edit-rotation').value = stats.rotation || '';
+
+            setModalView('data');
+            document.getElementById('editor-modal').showModal();
+        };
+
+        window.openGlobalStatsModal = (entityId) => {
+            document.getElementById('modal-title').innerText = `Edit Global Stats: ${entityId}`;
+            document.getElementById('edit-entity-id').value = entityId;
+            document.getElementById('edit-platform-id').value = 'GLOBAL';
+            
+            const gStats = appState[entityId].globalStats || {};
+            document.getElementById('edit-global-proxy').value = gStats.proxy || 0;
+            document.getElementById('edit-global-rdps').value = gStats.rdps || 0;
+            document.getElementById('edit-global-seeds').value = gStats.seeds || 0;
+            document.getElementById('edit-global-quality').value = gStats.quality || 0;
+            document.getElementById('edit-global-paused').value = gStats.paused || 0;
+            
+            setModalView('global');
+            document.getElementById('editor-modal').showModal();
+        };
+
+        window.openAddPlatformModal = (entityId) => {
+            document.getElementById('modal-title').innerText = `Add Platform to ${entityId}`;
+            document.getElementById('editor-form').reset();
+            document.getElementById('edit-entity-id').value = entityId;
+            document.getElementById('edit-platform-id').value = 'NEW';
+            
+            setModalView('platform');
+            document.getElementById('editor-modal').showModal();
+        };
+
+        window.openNewEntityModal = () => {
+            document.getElementById('modal-title').innerText = `Add New Entity`;
+            document.getElementById('editor-form').reset();
+            setModalView('entity');
+            document.getElementById('editor-modal').showModal();
+        };
+
+        window.toggleEntityState = async (entityId) => {
+            const currentState = appState[entityId].disabled;
+            const newState = !currentState;
+            
+            // If custom entity, save to Master DB
+            if (ALL_ENTITY_CONFIGS[entityId] && !BUILTIN_CONFIGS[entityId]) {
+                try {
+                    await update(ref(masterDb, 'custom_entities/' + entityId), { disabled: newState });
+                } catch(e) {
+                    alert("Error updating state: " + e.message);
+                }
+            } else {
+                // For built-ins, save to local storage
+                localDisabledStore[entityId] = newState;
+                localStorage.setItem('disabledEntities', JSON.stringify(localDisabledStore));
+                // Force update state
+                appState[entityId].disabled = newState;
+                requestRender();
+            }
+        };
+
+        window.deleteEntity = async (entityId) => {
+            if (confirm(`Are you sure you want to delete ${entityId} and remove it for everyone?`)) {
+                 try {
+                     // Delete from config list
+                     await remove(ref(masterDb, 'custom_entities/' + entityId));
+                     // Also try to delete manual data if it exists
+                     await remove(ref(masterDb, 'manual_data/' + entityId));
+                 } catch(e) {
+                     alert("Error deleting entity: " + e.message);
+                 }
+            }
+        };
+
+        document.getElementById('editor-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const mode = document.getElementById('edit-mode').value;
+            
+            if (mode === 'entity') {
+                // HANDLE NEW ENTITY CREATION -> Save to Master DB
+                const id = document.getElementById('new-entity-id-input').value.toUpperCase().replace(/\s+/g, '');
+                if (!id) return alert("Entity Name Required");
+                
+                const type = document.querySelector('input[name="entityType"]:checked').value;
+                let config = {};
+
+                if (type === 'api') {
+                    config = {
+                        apiKey: document.getElementById('new-entity-apikey').value.trim(),
+                        authDomain: document.getElementById('new-entity-authdomain').value.trim(),
+                        databaseURL: document.getElementById('new-entity-dburl').value.trim(),
+                        projectId: document.getElementById('new-entity-projectid').value.trim(),
+                        appId: document.getElementById('new-entity-appid').value.trim()
+                    };
+                    if (!config.apiKey || !config.databaseURL) return alert("API Key and DB URL are required.");
+                } else {
+                    config = { manual: true };
+                }
+
+                try {
+                    await update(ref(masterDb, 'custom_entities/' + id), config);
+                    document.getElementById('editor-modal').close();
+                } catch(err) {
+                    alert("Failed to save entity to master DB: " + err.message);
+                }
+                return;
             }
 
-            const promises = Object.keys(ENTITY_CONFIGS).map(id => fetchEntityData(id));
-            state.entities = await Promise.all(promises);
-            state.loading = false;
+            const entityId = document.getElementById('edit-entity-id').value;
+            const entityConfig = ALL_ENTITY_CONFIGS[entityId];
 
-            refreshBtn.innerHTML = '↻ Refresh';
-            refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            document.getElementById('last-updated').innerText = new Date().toLocaleTimeString();
+            if (mode === 'global') {
+                // Update Global Stats (Manual Only currently supported by UI, but logic fits)
+                if (entityConfig && entityConfig.manual) {
+                    await update(ref(masterDb, `manual_data/${entityId}/global_stats`), { 
+                        proxy: parseInt(document.getElementById('edit-global-proxy').value) || 0,
+                        glb_rdps: parseInt(document.getElementById('edit-global-rdps').value) || 0,
+                        "Total Seeds": parseInt(document.getElementById('edit-global-seeds').value) || 0,
+                        Qualite: parseInt(document.getElementById('edit-global-quality').value) || 0,
+                        Paused: parseInt(document.getElementById('edit-global-paused').value) || 0,
+                    });
+                    document.getElementById('editor-modal').close();
+                } else {
+                    alert("Editing global stats for connected entities is not supported in this view.");
+                }
+                return;
+            }
 
-            renderApp();
-        }
+            // HANDLE PLATFORM EDIT / ADD
+            let platformId = document.getElementById('edit-platform-id').value;
+            
+            if (platformId === 'NEW') {
+                platformId = document.getElementById('edit-name').value.toUpperCase().replace(/\s+/g, '_');
+                if (!platformId) return alert("Name required");
+            }
 
-        function renderApp() {
-            // Calculate Totals for Top Bar
-            const totals = {
-                rdps: 0, seeds: 0, qual: 0, pause: 0, proxy: 0,
-                sessions: 0, deploysHr: 0, deploysDay: 0, lancements: 0, seedsHr: 0, seedsDay: 0
+            // Construct Update Object
+            const updates = {
+                current: {
+                    updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+                    seeds: parseInt(document.getElementById('edit-seeds').value) || 0,
+                    rdps: parseInt(document.getElementById('edit-rdps').value) || 0,
+                    sessions: parseInt(document.getElementById('edit-sessions').value) || 0,
+                    quality: parseInt(document.getElementById('edit-quality').value) || 0,
+                    nbrdeploysperhour: parseInt(document.getElementById('edit-deploysHr').value) || 0,
+                    paused: parseInt(document.getElementById('edit-paused').value) || 0,
+                    nbrdeploysperday: parseInt(document.getElementById('edit-deploysDay').value) || 0,
+                    nbrseedsperhour: parseInt(document.getElementById('edit-seedsHr').value) || 0,
+                    nbrseedsperday: parseInt(document.getElementById('edit-seedsDay').value) || 0,
+                    nbrlancement: parseInt(document.getElementById('edit-lancements').value) || 0,
+                    period: document.getElementById('edit-period').value,
+                    rotation: document.getElementById('edit-rotation').value,
+                }
             };
 
-            state.entities.forEach(entity => {
-                // Basic global stats
-                totals.rdps += entity.globalStats.rdps;
-                totals.seeds += entity.globalStats.seeds;
-                totals.qual += entity.globalStats.qual;
-                totals.pause += entity.globalStats.pause;
-                totals.proxy += entity.globalStats.proxy;
-
-                // Detailed stats aggregation (Sum of all platforms)
-                Object.values(entity.platforms).forEach(plat => {
-                    const s = plat.stats;
-                    totals.sessions += s.sessions;
-                    totals.deploysHr += s.deploysHr;
-                    totals.deploysDay += s.deploysDay;
-                    totals.lancements += s.lancements;
-                    totals.seedsHr += s.seedsHr;
-                    totals.seedsDay += s.seedsDay;
-                });
-            });
-
-            // Render Global Stats
-            const globalGrid = document.getElementById('global-stats-grid');
-            globalGrid.innerHTML = `
-                ${renderStatCard('Total RDPs', totals.rdps, 'text-blue-500 dark:text-blue-400', '')}
-                ${renderStatCard('Total Seeds', totals.seeds, 'text-emerald-600 dark:text-emerald-400', '')}
-                ${renderStatCard('Total Sessions', totals.sessions, 'text-slate-700 dark:text-white', '')}
+            try {
+                if (entityConfig && entityConfig.manual) {
+                    // Save to Master DB Manual Data path
+                    const path = `manual_data/${entityId}/plans/${platformId}`;
+                    await update(ref(masterDb, path), updates);
+                } else {
+                    // Save to Remote DB
+                    const app = getEntityApp(entityId);
+                    const db = getDatabase(app);
+                    const path = `${entityId.toLowerCase()}/plans/${platformId}`;
+                    await update(ref(db, path), updates);
+                }
                 
-                ${renderStatCard('Total Deploys/hour', totals.deploysHr, 'text-indigo-500 dark:text-indigo-400', '')}
-                ${renderStatCard('Total Deploys/day', totals.deploysDay, 'text-indigo-500 dark:text-indigo-400', '')}
-                ${renderStatCard('Total Launches', totals.lancements, 'text-slate-700 dark:text-white', '')}
-                
-                ${renderStatCard('Total Seeds/hour', totals.seedsHr, 'text-teal-600 dark:text-teal-400', '')}
-                ${renderStatCard('Total Seeds/day', totals.seedsDay, 'text-teal-600 dark:text-teal-400', '')}
-                
-                ${renderStatCard('Total Quality', totals.qual, 'text-purple-500 dark:text-purple-400', '')}
-                ${renderStatCard('Total Paused', totals.pause, 'text-rose-500 dark:text-rose-400', '')}
-                ${renderStatCard('Total Proxy', totals.proxy, 'text-orange-500 dark:text-orange-400', '')}
-            `;
-
-            // Render Entities
-            const listContainer = document.getElementById('entities-list');
-            listContainer.innerHTML = state.entities.map(renderEntityRow).join('');
-        }
-
-        // --- Initialization ---
-
-        // Global functions for HTML interaction
-        window.toggleEntity = (id) => {
-            if (state.expandedEntities.has(id)) {
-                state.expandedEntities.delete(id);
-            } else {
-                state.expandedEntities.add(id);
+                document.getElementById('editor-modal').close();
+            } catch (err) {
+                alert("Save failed: " + err.message);
             }
-            renderApp(); // Re-render to update classes
-        };
+        });
 
-        window.manualRefresh = () => {
-            if (!state.loading) loadData();
-        };
-
-        // Star Background Generation (Adjusted for theme)
+        // --- STARS ANIMATION ---
         function generateStars() {
             const container = document.getElementById('stars-container');
             let html = '';
-            
-            // Random static stars
-            for (let i = 0; i < 50; i++) {
+            for (let i = 0; i < 40; i++) {
                 const top = Math.random() * 100;
                 const left = Math.random() * 100;
                 const size = Math.random() * 2 + 1;
                 html += `<div class="absolute rounded-full star-dot opacity-40" style="top: ${top}%; left: ${left}%; width: ${size}px; height: ${size}px;"></div>`;
             }
-
-            // Twinkling stars
-            html += `<div class="absolute top-[10%] left-[20%] w-1 h-1 star-dot rounded-full animate-ping" style="animation-duration: 3s"></div>`;
-            html += `<div class="absolute top-[30%] left-[60%] w-1 h-1 star-dot rounded-full animate-ping" style="animation-duration: 5s"></div>`;
-            html += `<div class="absolute top-[70%] left-[40%] w-1 h-1 star-dot rounded-full animate-ping" style="animation-duration: 4s"></div>`;
-            
             container.innerHTML = html;
         }
-
-        // Start
         generateStars();
-        document.getElementById('refresh-btn').addEventListener('click', loadData);
-        
-        // Initial load
-        loadData();
 
-        // Auto-refresh interval (60s)
-        setInterval(loadData, 60000);
+        // Immediately start listeners without password check
+        setupRealtimeListeners();
 
     </script>
   </body>
