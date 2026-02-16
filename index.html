@@ -8,6 +8,19 @@
     <script>
         tailwind.config = {
             darkMode: 'class',
+            theme: {
+                extend: {
+                    animation: { 'blob': 'blob 10s infinite' },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        }
+                    }
+                }
+            }
         }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
@@ -18,15 +31,10 @@
         body {
             font-family: 'Inter', sans-serif;
             transition: background-color 0.3s ease, color 0.3s ease;
-        }
-        
-        /* Light Mode Defaults */
-        body {
-            background-color: #f1f5f9; /* slate-100 */
-            color: #0f172a; /* slate-900 */
+            background-color: #f1f5f9;
+            color: #0f172a;
         }
 
-        /* Dark Mode Overrides */
         .dark body {
             background-color: #020617;
             color: #f8fafc;
@@ -112,15 +120,36 @@
             filter: grayscale(1);
         }
         
-        /* Utility for platform grid labels */
         .stat-label {
             font-size: 0.6rem;
             line-height: 1;
             text-transform: uppercase;
             font-weight: 700;
-            color: #64748b; /* slate-500 */
+            color: #64748b;
         }
-        .dark .stat-label { color: #94a3b8; /* slate-400 */ }
+        .dark .stat-label { color: #94a3b8; }
+
+        /* Login Overlay Styles */
+        #loginOverlay {
+            background: rgba(2, 6, 23, 0.95); /* Dark background by default for cosmic feel */
+            backdrop-filter: blur(12px);
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .login-input {
+            color: #0f172a !important;
+            background-color: rgba(255, 255, 255, 0.9) !important;
+        }
+        .dark .login-input {
+            color: #f8fafc !important;
+            background-color: rgba(30, 41, 59, 0.8) !important;
+        }
     </style>
   <script type="importmap">
 {
@@ -138,8 +167,22 @@
     <div class="fixed inset-0 -z-10 bg-gradient-to-br from-blue-50 via-slate-100 to-white dark:from-slate-900 dark:via-[#0f172a] dark:to-black animate-bg transition-colors duration-500"></div>
     <div class="fixed inset-0 -z-10 opacity-60 pointer-events-none" id="stars-container"></div>
 
-    <!-- Main App Container -->
-    <div id="app" class="max-w-7xl mx-auto transition-all duration-500">
+    <!-- Login Overlay -->
+    <div id="loginOverlay" style="display: flex;">
+        <div class="glass-card p-10 rounded-[2.5rem] w-full max-w-sm text-center border shadow-2xl relative overflow-hidden">
+            <div class="relative z-10">
+                <div class="w-20 h-20 bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-xl ring-4 ring-blue-500/20">
+                    <span class="text-white text-3xl font-black italic">W</span>
+                </div>
+                <h2 class="text-3xl font-black mb-2 uppercase tracking-tighter text-slate-800 dark:text-white">EMSW ACCESS</h2>
+                <input type="password" id="accessKey" onkeypress="if(event.key==='Enter') window.checkAccess()" placeholder="••••••••" class="login-input w-full p-4 border-none rounded-2xl mb-4 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder-slate-400">
+                <button onclick="window.checkAccess()" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white p-4 rounded-2xl font-black uppercase shadow-lg transform hover:scale-105 transition-all">Unlock Dashboard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Container (Hidden by default) -->
+    <div id="app" class="hidden max-w-7xl mx-auto transition-all duration-500">
         <!-- Header -->
         <header class="mb-10 flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
@@ -149,7 +192,7 @@
               <div class="flex items-center gap-2 mt-1">
                   <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                   <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                    LIVE SYNC ACTIVE • <span id="user-role-display" class="text-blue-500">SUPER ADMIN</span>
+                    LIVE SYNC ACTIVE • <span id="user-role-display" class="text-blue-500">VIEWER</span>
                   </p>
               </div>
             </div>
@@ -158,8 +201,8 @@
                     <span id="icon-sun" class="hidden">☀️</span>
                     <span id="icon-moon" class="hidden">🌙</span>
                 </button>
-                <button onclick="window.location.reload()" class="glass-card px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-black/5 dark:hover:bg-white/10 transition-all active:scale-95 text-slate-700 dark:text-white">
-                    Force Reload
+                <button onclick="window.logout()" class="glass-card w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95 text-xl" title="Logout">
+                    <i class="ph ph-sign-out"></i>
                 </button>
             </div>
         </header>
@@ -361,8 +404,62 @@
         import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
         import { getDatabase, ref, onValue, update, set, remove } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js';
 
-        // Set default to SUPER to allow full access without code
-        let userRole = 'SUPER'; 
+        // --- AUTH CONFIG ---
+        const AUTH_URL = "https://emsw-test.alamiuness.workers.dev";
+        
+        // Default to viewer initially
+        let userRole = 'VIEWER'; 
+
+        // --- AUTH & INIT LOGIC ---
+        function checkAuthOnLoad() {
+            const key = localStorage.getItem('emsw_key');
+            const role = localStorage.getItem('emsw_role');
+            
+            if (key === 'valid' && role) {
+                // SUCCESS: Logged in
+                userRole = role.toUpperCase();
+                document.getElementById('user-role-display').innerText = userRole;
+                
+                // Show App, Hide Login
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('app').classList.remove('hidden');
+                
+                // Start Listeners
+                setupRealtimeListeners();
+            } else {
+                // FAIL: Not logged in
+                document.getElementById('loginOverlay').style.display = 'flex';
+                document.getElementById('app').classList.add('hidden');
+            }
+        }
+
+        window.checkAccess = async function() {
+            const k = document.getElementById('accessKey').value;
+            try {
+                const response = await fetch(AUTH_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: k })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    localStorage.setItem('emsw_key', 'valid');
+                    localStorage.setItem('emsw_role', data.role);
+                    location.reload();
+                } else {
+                    alert('Access Denied');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Auth Error: ' + e.message);
+            }
+        };
+
+        window.logout = function() {
+            localStorage.clear();
+            location.reload();
+        };
 
         // --- THEME LOGIC ---
         const htmlEl = document.documentElement;
@@ -391,7 +488,7 @@
             updateThemeIcons();
         });
 
-        // --- AUTH & MASTER DB CONSTANTS ---
+        // --- MASTER DB CONSTANTS ---
         const MASTER_FIREBASE_CONFIG = {
             apiKey: "AIzaSyDJ0W3pjxunTgK1jy8YNHgSYEsncgQa7zE", 
             authDomain: "dashboard-emsw.firebaseapp.com", 
@@ -442,7 +539,6 @@
           }
         };
 
-        // Whitelist Configuration for Active Platforms
         const ALLOWED_PLATFORMS = {
             'DMF': ['SELENIUM 2'],
             'EMS1': ['SELENIUM'],
@@ -451,11 +547,9 @@
             'EMS6': ['WEB', 'SELENIUM', 'AUTOMAT']
         };
 
-        // Current active configs (starts with built-in, adds custom ones from Master DB)
         let ALL_ENTITY_CONFIGS = { ...BUILTIN_CONFIGS };
 
         // --- FIREBASE INITIALIZATION ---
-        // 1. Initialize Master App for Custom Entities storage
         const masterApp = initializeApp(MASTER_FIREBASE_CONFIG, "MASTER_APP");
         const masterDb = getDatabase(masterApp);
 
@@ -470,7 +564,6 @@
         }
 
         // --- STATE MANAGEMENT ---
-        // Global store for entity data
         const appState = {}; 
         Object.keys(BUILTIN_CONFIGS).forEach(id => {
             appState[id] = { globalStats: {}, platforms: {}, rawData: null, disabled: false };
@@ -478,7 +571,6 @@
         
         const expandedEntities = new Set();
         const connectedEntityIds = new Set();
-        // Store disabled state for built-ins locally
         const localDisabledStore = JSON.parse(localStorage.getItem('disabledEntities') || '{}');
 
         // --- DATA EXTRACTION HELPER ---
@@ -504,19 +596,16 @@
             return type === 'string' ? '-' : 0;
         }
 
-        // --- LOGIC UPDATE: processPlanData ---
         function processPlanData(rawPlans, rootPath, entityId) {
              const platforms = {};
              const allowed = ALLOWED_PLATFORMS[entityId];
 
              Object.keys(rawPlans).forEach(key => {
-                // If this entity has a whitelist, strictly enforce it
                 if (allowed && !allowed.includes(key)) return;
 
                 const planData = rawPlans[key] || {};
                 const currentData = planData.current || {};
                 
-                // ROBUSTNESS: Updated searchObj to include planData (root)
                 const searchObj = { 
                     ...planData,
                     ...(planData.stats || {}), 
@@ -524,17 +613,11 @@
                     ...(currentData.stats || {}) 
                 };
 
-                // Ensure we only process if there is relevant data
                 if (Object.keys(searchObj).length > 0 || planData.deploys || currentData.deploys) {
-                    
-                    // 1. Calculate Deploys/h (active deploys)
                     let activeDeploysCount = 0;
-                    
-                    // Prioritize counting active entries in 'deploys' object (Check both root and current)
                     let deploysObj = planData.deploys || currentData.deploys;
                     
                     if (deploysObj && typeof deploysObj === 'object') {
-                        // If it's an array, filter out nulls/undefined to be safe
                         if (Array.isArray(deploysObj)) {
                             activeDeploysCount = deploysObj.filter(d => d).length;
                         } else {
@@ -542,7 +625,6 @@
                         }
                     } 
                     
-                    // Fallback to existing metric search if object count is 0
                     if (activeDeploysCount === 0) {
                         activeDeploysCount = findMetric(searchObj, [
                             'nbrdeploysperhour', 'active_deploys', 'activeDeploys', 'Deploys/h', 'deploys_per_hour',
@@ -550,13 +632,9 @@
                         ]);
                     }
 
-                    // 2. Get Launches
                     const lancements = findMetric(searchObj, ['nbrlancement', 'Lancements', 'Launches', 'launches', 'lancement']);
-                    
-                    // 3. Calculate Deploys/Day = Deploys/h * Launches
                     const calculatedDeploysDay = activeDeploysCount * lancements;
 
-                    // Extract all requested metrics
                     const stats = {
                             seeds: findMetric(searchObj, ['Seeds', 'seeds', 'SEEDS', 'nbrseeds']),
                             rdps: findMetric(searchObj, ['RDPs', 'rdps', 'RDP', 'nbrrdp']),
@@ -586,7 +664,6 @@
         function connectEntity(entityId) {
             if (connectedEntityIds.has(entityId)) return;
             
-            // Check disabled state
             const config = ALL_ENTITY_CONFIGS[entityId];
             const isDisabled = config.disabled || localDisabledStore[entityId];
             
@@ -597,7 +674,6 @@
             }
 
             try {
-                // Handle MANUAL entities (stored in Master DB)
                 if (config && config.manual) {
                     const manualRoot = `manual_data/${entityId}`;
                     const manualPlansRef = ref(masterDb, `${manualRoot}/plans`);
@@ -610,7 +686,6 @@
                          requestRender();
                     });
                     
-                    // Fetch Manual Global Stats
                     onValue(manualGlobalRef, (snapshot) => {
                          const val = snapshot.val() || {};
                          appState[entityId].globalStats = {
@@ -627,7 +702,6 @@
                     return;
                 }
 
-                // Handle CONNECTED entities (Remote Firebase)
                 const app = getEntityApp(entityId);
                 const db = getDatabase(app);
                 const rootPath = entityId.toLowerCase();
@@ -642,7 +716,6 @@
                     requestRender();
                 });
 
-                // Listener for Global Stats
                 onValue(globalRef, (snapshot) => {
                     const val = snapshot.val() || {};
                     appState[entityId].globalStats = {
@@ -663,10 +736,8 @@
 
         // --- MAIN INIT FUNCTION ---
         function setupRealtimeListeners() {
-            // 1. Connect Built-ins
             Object.keys(BUILTIN_CONFIGS).forEach(id => connectEntity(id));
 
-            // 2. Listen to Master DB for custom entities
             const customEntitiesRef = ref(masterDb, 'custom_entities');
             onValue(customEntitiesRef, (snapshot) => {
                 const customData = snapshot.val() || {};
@@ -674,7 +745,6 @@
                 const currentCustomIds = Object.keys(ALL_ENTITY_CONFIGS).filter(id => !BUILTIN_CONFIGS[id]);
                 const newCustomIds = Object.keys(customData);
 
-                // Remove deleted
                 currentCustomIds.forEach(id => {
                     if (!customData[id]) {
                         delete ALL_ENTITY_CONFIGS[id];
@@ -683,7 +753,6 @@
                     }
                 });
 
-                // Add/Update new
                 newCustomIds.forEach(id => {
                     ALL_ENTITY_CONFIGS[id] = customData[id];
                     connectEntity(id); 
@@ -693,7 +762,6 @@
             });
         }
 
-        // --- DEBOUNCED RENDER ---
         let renderTimeout;
         function requestRender() {
             if (renderTimeout) cancelAnimationFrame(renderTimeout);
@@ -725,20 +793,15 @@
         }
 
         function renderUI() {
-            // 1. Calculate Global Totals
             const globalTotals = { rdps: 0, seeds: 0, qual: 0, pause: 0, proxy: 0, sessions: 0, deploysHr: 0, deploysDay: 0, lancements: 0, seedsHr: 0, seedsDay: 0 };
-            
             const activeEntityIds = Object.keys(ALL_ENTITY_CONFIGS);
-            let totalQualityCount = 0;
             let totalQualitySum = 0;
 
             activeEntityIds.forEach(entityId => {
                 const e = appState[entityId];
-                if (!e || e.disabled) return; // Skip disabled stats
+                if (!e || e.disabled) return; 
                 
                 const gStats = e.globalStats || {};
-                
-                // Create a temporary totals object to allow overrides without mutating state
                 let entityTotals = {
                     rdps: gStats.rdps || 0,
                     seeds: gStats.seeds || 0,
@@ -747,8 +810,6 @@
                     proxy: gStats.proxy || 0
                 };
 
-                // MANUAL ENTITY AGGREGATION: Dynamically sum from platforms if manual
-                // This fixes the issue where manually added data isn't reflected in global stats
                 if (ALL_ENTITY_CONFIGS[entityId] && ALL_ENTITY_CONFIGS[entityId].manual) {
                     const platforms = Object.values(e.platforms);
                     if (platforms.length > 0) {
@@ -756,21 +817,12 @@
                         entityTotals.rdps = platforms.reduce((acc, p) => acc + (p.stats.rdps || 0), 0);
                         entityTotals.qual = platforms.reduce((acc, p) => acc + (p.stats.quality || 0), 0);
                         entityTotals.pause = platforms.reduce((acc, p) => acc + (p.stats.paused || 0), 0);
-                        // Proxy remains from global stats
                     }
                 }
 
-                // OVERRIDE: EMS1 Correct Total Seeds to 12690
-                if (entityId === 'EMS1') {
-                    entityTotals.seeds = 12690;
-                }
+                if (entityId === 'EMS1') entityTotals.seeds = 12690;
+                if (entityId === 'DMF') entityTotals.seeds = 16867;
 
-                // OVERRIDE: DMF Correct Total Seeds to 16867
-                if (entityId === 'DMF') {
-                    entityTotals.seeds = 16867;
-                }
-
-                // OVERRIDE: EMS3, EMS4, EMS6 Quality & Paused from Platforms if Global is 0
                 if (['EMS3', 'EMS4', 'EMS6'].includes(entityId)) {
                      let maxQual = 0;
                      let maxPause = 0;
@@ -782,7 +834,6 @@
                      if (maxPause > 0) entityTotals.pause = maxPause;
                 }
 
-                // Use Calculated Entity Totals for Global Aggregation
                 globalTotals.rdps += entityTotals.rdps;
                 globalTotals.seeds += entityTotals.seeds;
                 globalTotals.pause += entityTotals.pause;
@@ -790,10 +841,8 @@
                 
                 if (entityTotals.qual > 0) {
                      totalQualitySum += entityTotals.qual;
-                     totalQualityCount++;
                 }
 
-                // Use Platform aggregation for others
                 Object.values(e.platforms).forEach(p => {
                     globalTotals.sessions += p.stats.sessions;
                     globalTotals.deploysHr += p.stats.deploysHr;
@@ -806,7 +855,6 @@
 
             globalTotals.qual = totalQualitySum;
 
-            // 2. Render Global Stats Grid
             document.getElementById('global-stats-grid').innerHTML = `
                 ${renderStatCard('Total RDPs', globalTotals.rdps, 'text-blue-500 dark:text-blue-400')}
                 ${renderStatCard('Total Seeds', globalTotals.seeds, 'text-emerald-600 dark:text-emerald-400')}
@@ -824,26 +872,18 @@
                 ${renderStatCard('Proxy', globalTotals.proxy, 'text-amber-500 dark:text-amber-400')}
             `;
 
-            // 3. Render Entities List
             const listHtml = activeEntityIds.map(entityId => {
                 const entityData = appState[entityId];
                 if (!entityData) return ''; 
 
                 const isDisabled = entityData.disabled;
                 const isManual = ALL_ENTITY_CONFIGS[entityId].manual;
-                
-                // If disabled, just show header with opacity
                 const opacityClass = isDisabled ? 'disabled-entity' : '';
                 const isExpanded = expandedEntities.has(entityId);
                 const allPlatforms = Object.entries(entityData.platforms);
-                
-                // VISIBILITY LOGIC: Only display platforms where Launches > 0
-                // Note: Global totals above still use all platforms (Object.values(e.platforms))
                 const activePlatforms = allPlatforms.filter(([_, data]) => data.stats.lancements > 0);
-                
                 const gStats = entityData.globalStats || {};
                 
-                // RE-APPLY OVERRIDES FOR ENTITY CARD DISPLAY
                 let entityTotals = {
                     rdps: gStats.rdps || 0,
                     seeds: gStats.seeds || 0,
@@ -852,7 +892,6 @@
                     proxy: gStats.proxy || 0
                 };
 
-                // MANUAL ENTITY AGGREGATION (Display)
                 if (ALL_ENTITY_CONFIGS[entityId] && ALL_ENTITY_CONFIGS[entityId].manual) {
                     const platforms = Object.values(entityData.platforms);
                     if (platforms.length > 0) {
@@ -866,7 +905,6 @@
                 if (entityId === 'EMS1') entityTotals.seeds = 12690;
                 if (entityId === 'DMF') entityTotals.seeds = 16867;
 
-                // OVERRIDE: EMS3, EMS4, EMS6 Quality & Paused from Platforms if Global is 0
                 if (['EMS3', 'EMS4', 'EMS6'].includes(entityId)) {
                      let maxQual = 0;
                      let maxPause = 0;
@@ -878,7 +916,6 @@
                      if (maxPause > 0) entityTotals.pause = maxPause;
                 }
 
-                // Platforms Grid Generation
                 let platformsHTML = '';
                 const platformListToRender = userRole === 'SUPER' ? allPlatforms : activePlatforms;
                 
@@ -895,7 +932,6 @@
                             </button>
                         ` : '';
 
-                        // Detailed Platform Card Layout
                         platformsHTML += `
                         <div class="relative bg-slate-200/50 dark:bg-slate-800/40 rounded-xl p-4 border border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/10 transition-colors flex flex-col h-full group">
                             ${editBtn}
@@ -904,7 +940,6 @@
                                 ${time ? `<span class="text-[9px] text-slate-500 bg-white/50 dark:bg-slate-900/50 px-2 py-0.5 rounded whitespace-nowrap">${time}</span>` : ''}
                             </div>
                             
-                            <!-- Metric Grid: 10 main metrics -->
                             <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-auto">
                                 ${renderMiniMetric('Seeds', s.seeds, 'text-emerald-600 dark:text-emerald-400')}
                                 ${renderMiniMetric('RDPs', s.rdps, 'text-blue-600 dark:text-blue-400')}
@@ -923,7 +958,6 @@
                                 </div>
                             </div>
 
-                            <!-- Footer: Text info (Period, Rotation) -->
                             <div class="mt-3 space-y-2 pt-3 border-t border-slate-300/50 dark:border-slate-700/50">
                                 <div class="flex justify-between items-center text-[10px]">
                                     <span class="text-slate-500 font-bold uppercase">Period</span>
@@ -948,7 +982,6 @@
                     `;
                 }
 
-                // Controls: Disable and Delete
                 const isBuiltIn = !!BUILTIN_CONFIGS[entityId];
                 let controlsBtn = '';
                 if (userRole === 'SUPER') {
@@ -971,7 +1004,6 @@
                     `;
                 }
 
-                // Manual Global Stats Edit Button
                 let proxyDisplay = `<span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.proxy}</span>`;
                 if (isManual && userRole === 'SUPER' && !isDisabled) {
                     proxyDisplay += `
@@ -1020,7 +1052,6 @@
 
             document.getElementById('entities-list').innerHTML = listHtml;
             
-            // Show/Hide Super Admin Controls
             if (userRole === 'SUPER') {
                 document.getElementById('super-admin-controls').classList.remove('hidden');
             } else {
@@ -1028,7 +1059,6 @@
             }
         }
 
-        // --- HTML INTERACTION HANDLERS ---
         window.toggleEntity = (id) => {
             if (expandedEntities.has(id)) expandedEntities.delete(id);
             else expandedEntities.add(id);
@@ -1042,7 +1072,7 @@
              else container.classList.add('hidden');
         };
 
-        // --- EDITOR LOGIC (SUPER ADMIN) ---
+        // --- EDITOR LOGIC ---
         function setModalView(mode) {
              const editFields = document.getElementById('edit-data-fields');
              const newPlatFields = document.getElementById('new-platform-fields');
@@ -1050,7 +1080,6 @@
              const globalFields = document.getElementById('edit-global-fields');
              document.getElementById('edit-mode').value = mode;
 
-             // Hide all first
              editFields.classList.add('hidden');
              newPlatFields.classList.add('hidden');
              newEntityFields.classList.add('hidden');
@@ -1078,7 +1107,6 @@
             document.getElementById('edit-entity-id').value = entityId;
             document.getElementById('edit-platform-id').value = platformKey;
             
-            // Populate
             document.getElementById('edit-seeds').value = stats.seeds || 0;
             document.getElementById('edit-rdps').value = stats.rdps || 0;
             document.getElementById('edit-sessions').value = stats.sessions || 0;
@@ -1133,7 +1161,6 @@
             const currentState = appState[entityId].disabled;
             const newState = !currentState;
             
-            // If custom entity, save to Master DB
             if (ALL_ENTITY_CONFIGS[entityId] && !BUILTIN_CONFIGS[entityId]) {
                 try {
                     await update(ref(masterDb, 'custom_entities/' + entityId), { disabled: newState });
@@ -1141,10 +1168,8 @@
                     alert("Error updating state: " + e.message);
                 }
             } else {
-                // For built-ins, save to local storage
                 localDisabledStore[entityId] = newState;
                 localStorage.setItem('disabledEntities', JSON.stringify(localDisabledStore));
-                // Force update state
                 appState[entityId].disabled = newState;
                 requestRender();
             }
@@ -1153,9 +1178,7 @@
         window.deleteEntity = async (entityId) => {
             if (confirm(`Are you sure you want to delete ${entityId} and remove it for everyone?`)) {
                  try {
-                     // Delete from config list
                      await remove(ref(masterDb, 'custom_entities/' + entityId));
-                     // Also try to delete manual data if it exists
                      await remove(ref(masterDb, 'manual_data/' + entityId));
                  } catch(e) {
                      alert("Error deleting entity: " + e.message);
@@ -1168,7 +1191,6 @@
             const mode = document.getElementById('edit-mode').value;
             
             if (mode === 'entity') {
-                // HANDLE NEW ENTITY CREATION -> Save to Master DB
                 const id = document.getElementById('new-entity-id-input').value.toUpperCase().replace(/\s+/g, '');
                 if (!id) return alert("Entity Name Required");
                 
@@ -1201,7 +1223,6 @@
             const entityConfig = ALL_ENTITY_CONFIGS[entityId];
 
             if (mode === 'global') {
-                // Update Global Stats (Manual Only currently supported by UI, but logic fits)
                 if (entityConfig && entityConfig.manual) {
                     await update(ref(masterDb, `manual_data/${entityId}/global_stats`), { 
                         proxy: parseInt(document.getElementById('edit-global-proxy').value) || 0,
@@ -1217,7 +1238,6 @@
                 return;
             }
 
-            // HANDLE PLATFORM EDIT / ADD
             let platformId = document.getElementById('edit-platform-id').value;
             
             if (platformId === 'NEW') {
@@ -1225,7 +1245,6 @@
                 if (!platformId) return alert("Name required");
             }
 
-            // Construct Update Object
             const updates = {
                 current: {
                     updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
@@ -1246,11 +1265,9 @@
 
             try {
                 if (entityConfig && entityConfig.manual) {
-                    // Save to Master DB Manual Data path
                     const path = `manual_data/${entityId}/plans/${platformId}`;
                     await update(ref(masterDb, path), updates);
                 } else {
-                    // Save to Remote DB
                     const app = getEntityApp(entityId);
                     const db = getDatabase(app);
                     const path = `${entityId.toLowerCase()}/plans/${platformId}`;
@@ -1263,7 +1280,6 @@
             }
         });
 
-        // --- STARS ANIMATION ---
         function generateStars() {
             const container = document.getElementById('stars-container');
             let html = '';
@@ -1277,8 +1293,8 @@
         }
         generateStars();
 
-        // Immediately start listeners without password check
-        setupRealtimeListeners();
+        // Check Login State on Load
+        checkAuthOnLoad();
 
     </script>
   </body>
