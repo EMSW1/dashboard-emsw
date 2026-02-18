@@ -235,7 +235,7 @@
         </footer>
     </div>
 
-    <!-- Edit/Add Modal (Super Admin Only) -->
+    <!-- Edit/Add Modal -->
     <dialog id="editor-modal" class="backdrop:backdrop-blur-sm p-0 rounded-2xl shadow-2xl overflow-hidden max-w-lg w-full m-auto">
         <div class="glass-card p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
             <h3 class="text-xl font-black text-slate-800 dark:text-white mb-4" id="modal-title">Edit Data</h3>
@@ -405,8 +405,11 @@
         import { getDatabase, ref, onValue, update, set, remove } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js';
 
         // --- AUTH CONFIG ---
-        const AUTH_URL = "https://emsw-test.alamiuness.workers.dev";
+        const AUTH_URL = "https://dashboard-emsw.alamiuness.workers.dev";
         
+        // Allowed Entities for EMSW Role
+        const EMSW_ALLOWED_ENTITIES = ['EMK1', 'EMK2', 'EMK3', 'EMH'];
+
         // Default to viewer initially
         let userRole = 'VIEWER'; 
 
@@ -445,7 +448,7 @@
                 
                 if (data.success) {
                     localStorage.setItem('emsw_key', 'valid');
-                    localStorage.setItem('emsw_role', data.role);
+                    localStorage.setItem('emsw_role', data.role); // Role returned from worker: 'SUPER', 'ADMIN', or 'EMSW'
                     location.reload();
                 } else {
                     alert('Access Denied');
@@ -792,6 +795,12 @@
             `;
         }
 
+        function canEditEntity(entityId) {
+            if (userRole === 'SUPER') return true;
+            if (userRole === 'EMSW' && EMSW_ALLOWED_ENTITIES.includes(entityId)) return true;
+            return false;
+        }
+
         function renderUI() {
             const globalTotals = { rdps: 0, seeds: 0, qual: 0, pause: 0, proxy: 0, sessions: 0, deploysHr: 0, deploysDay: 0, lancements: 0, seedsHr: 0, seedsDay: 0 };
             const activeEntityIds = Object.keys(ALL_ENTITY_CONFIGS);
@@ -884,6 +893,9 @@
                 const activePlatforms = allPlatforms.filter(([_, data]) => data.stats.lancements > 0);
                 const gStats = entityData.globalStats || {};
                 
+                // Determine if user can edit this specific entity
+                const canEdit = canEditEntity(entityId);
+
                 let entityTotals = {
                     rdps: gStats.rdps || 0,
                     seeds: gStats.seeds || 0,
@@ -926,7 +938,7 @@
                         const s = pData.stats;
                         const time = pData.updatedAt ? (pData.updatedAt.split(' ')[1] || pData.updatedAt) : '';
                         
-                        const editBtn = userRole === 'SUPER' ? `
+                        const editBtn = canEdit ? `
                             <button onclick="window.openEditModal('${entityId}', '${pName}')" class="absolute top-2 right-2 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-400 hover:text-blue-500 transition-colors z-10">
                                 <i class="ph ph-pencil-simple"></i>
                             </button>
@@ -973,7 +985,7 @@
                 }
 
                 let addBtn = '';
-                if (userRole === 'SUPER') {
+                if (canEdit) {
                     addBtn = `
                         <button onclick="window.openAddPlatformModal('${entityId}')" class="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 text-slate-400 hover:text-blue-500 transition-all min-h-[280px] group">
                             <i class="ph ph-plus-circle text-3xl mb-2 group-hover:scale-110 transition-transform"></i>
@@ -984,17 +996,17 @@
 
                 const isBuiltIn = !!BUILTIN_CONFIGS[entityId];
                 let controlsBtn = '';
-                if (userRole === 'SUPER') {
-                    const deleteBtn = !isBuiltIn ? `
+                if (canEdit) { // Only show these controls if user can edit this entity
+                    const deleteBtn = (userRole === 'SUPER' && !isBuiltIn) ? `
                         <button onclick="event.stopPropagation(); window.deleteEntity('${entityId}')" class="text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 p-2 bg-rose-500/10 rounded-full hover:bg-rose-500/20 transition-colors" title="Delete">
                             <i class="ph ph-trash text-lg"></i>
                         </button>` : '';
                     
-                    const toggleStateBtn = `
+                    const toggleStateBtn = userRole === 'SUPER' ? `
                         <button onclick="event.stopPropagation(); window.toggleEntityState('${entityId}')" class="${isDisabled ? 'text-slate-400' : 'text-green-500'} p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors" title="${isDisabled ? 'Enable' : 'Disable'}">
                             <i class="ph ${isDisabled ? 'ph-toggle-left' : 'ph-toggle-right'} text-2xl"></i>
                         </button>
-                    `;
+                    ` : '';
 
                     controlsBtn = `
                         <div class="absolute top-6 right-16 flex items-center gap-2 z-20">
@@ -1005,7 +1017,7 @@
                 }
 
                 let proxyDisplay = `<span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.proxy}</span>`;
-                if (isManual && userRole === 'SUPER' && !isDisabled) {
+                if (isManual && canEdit && !isDisabled) {
                     proxyDisplay += `
                         <button onclick="event.stopPropagation(); window.openGlobalStatsModal('${entityId}')" class="ml-1 text-xs text-slate-400 hover:text-blue-500"><i class="ph ph-pencil-simple"></i></button>
                     `;
@@ -1018,7 +1030,7 @@
                         
                         <div class="flex items-center gap-4 min-w-[150px]">
                             <div class="w-12 h-12 rounded-xl bg-gradient-to-br ${isDisabled ? 'from-slate-400 to-slate-500' : 'from-indigo-500 to-blue-600'} flex items-center justify-center shadow-lg ring-2 ring-black/5 dark:ring-white/10">
-                                <span class="font-black text-white text-lg">${entityId.replace(/(EMS|DMF)/, '$1'[0])}</span>
+                                <span class="font-black text-white text-lg">${entityId.replace(/(EMS|DMF|EMK)/, '$1'[0])}</span>
                             </div>
                             <div>
                                 <h2 class="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">${entityId} ${isDisabled ? '<span class="text-xs font-normal text-red-500 uppercase ml-2">(Inactive)</span>' : ''}</h2>
@@ -1052,6 +1064,7 @@
 
             document.getElementById('entities-list').innerHTML = listHtml;
             
+            // Only Super Admin can see the global "Add System" button
             if (userRole === 'SUPER') {
                 document.getElementById('super-admin-controls').classList.remove('hidden');
             } else {
@@ -1100,6 +1113,10 @@
         }
 
         window.openEditModal = (entityId, platformKey) => {
+            if (!canEditEntity(entityId)) {
+                return alert("Access Denied: You do not have permission to edit this entity.");
+            }
+
             const data = appState[entityId].platforms[platformKey];
             const stats = data.stats;
             
@@ -1125,6 +1142,10 @@
         };
 
         window.openGlobalStatsModal = (entityId) => {
+            if (!canEditEntity(entityId)) {
+                return alert("Access Denied: You do not have permission to edit this entity.");
+            }
+
             document.getElementById('modal-title').innerText = `Edit Global Stats: ${entityId}`;
             document.getElementById('edit-entity-id').value = entityId;
             document.getElementById('edit-platform-id').value = 'GLOBAL';
@@ -1141,6 +1162,10 @@
         };
 
         window.openAddPlatformModal = (entityId) => {
+            if (!canEditEntity(entityId)) {
+                return alert("Access Denied: You do not have permission to edit this entity.");
+            }
+
             document.getElementById('modal-title').innerText = `Add Platform to ${entityId}`;
             document.getElementById('editor-form').reset();
             document.getElementById('edit-entity-id').value = entityId;
@@ -1151,6 +1176,7 @@
         };
 
         window.openNewEntityModal = () => {
+            if (userRole !== 'SUPER') return alert("Access Denied: Super Admin only.");
             document.getElementById('modal-title').innerText = `Add New Entity`;
             document.getElementById('editor-form').reset();
             setModalView('entity');
@@ -1158,6 +1184,8 @@
         };
 
         window.toggleEntityState = async (entityId) => {
+            if (userRole !== 'SUPER') return alert("Access Denied: Super Admin only.");
+
             const currentState = appState[entityId].disabled;
             const newState = !currentState;
             
@@ -1176,6 +1204,8 @@
         };
 
         window.deleteEntity = async (entityId) => {
+            if (userRole !== 'SUPER') return alert("Access Denied: Super Admin only.");
+            
             if (confirm(`Are you sure you want to delete ${entityId} and remove it for everyone?`)) {
                  try {
                      await remove(ref(masterDb, 'custom_entities/' + entityId));
@@ -1191,6 +1221,7 @@
             const mode = document.getElementById('edit-mode').value;
             
             if (mode === 'entity') {
+                if (userRole !== 'SUPER') return alert("Access Denied");
                 const id = document.getElementById('new-entity-id-input').value.toUpperCase().replace(/\s+/g, '');
                 if (!id) return alert("Entity Name Required");
                 
@@ -1220,6 +1251,12 @@
             }
 
             const entityId = document.getElementById('edit-entity-id').value;
+            
+            // Security Check before saving
+            if (!canEditEntity(entityId)) {
+                return alert("Access Denied: You cannot modify this entity.");
+            }
+
             const entityConfig = ALL_ENTITY_CONFIGS[entityId];
 
             if (mode === 'global') {
