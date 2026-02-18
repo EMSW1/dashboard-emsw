@@ -648,7 +648,7 @@
                             seedsDay: findMetric(searchObj, ['nbrseedsperday', 'Seeds/d', 'Seeds/Day', 'seedsDay']),
                             lancements: lancements,
                             quality: findMetric(searchObj, ['Quality', 'quality', 'Qual']),
-                            <!-- paused: findMetric(searchObj, ['Paused', 'paused', 'Pause']), -->
+                            paused: findMetric(searchObj, ['Paused', 'paused', 'Pause']),
                             period: findMetric(searchObj, ['period', 'Period', 'date_range'], 'string'),
                             rotation: findMetric(searchObj, ['Rotation', 'rotation'], 'string')
                     };
@@ -695,7 +695,7 @@
                              rdps: findMetric(val, ['glb_rdps', 'Total RDPs', 'RDPs'], 'int'),
                              seeds: findMetric(val, ['Total Seeds', 'Seeds', 'SEEDS'], 'int'),
                              quality: findMetric(val, ['Qualite', 'Quality'], 'int'),
-                             <!-- paused: findMetric(val, ['Paused'], 'int'), -->
+                             paused: findMetric(val, ['Paused'], 'int'),
                              proxy: findMetric(val, ['proxy', 'Proxy'], 'int')
                          };
                          requestRender();
@@ -725,7 +725,7 @@
                         rdps: findMetric(val, ['glb_rdps', 'Total RDPs', 'RDPs'], 'int'),
                         seeds: findMetric(val, ['Total Seeds', 'Seeds', 'SEEDS'], 'int'),
                         quality: findMetric(val, ['Qualite', 'Quality'], 'int'),
-                        <!-- paused: findMetric(val, ['Paused'], 'int'), -->
+                        paused: findMetric(val, ['Paused'], 'int'),
                         proxy: findMetric(val, ['proxy', 'Proxy', 'PROXY'], 'int')
                     };
                     requestRender();
@@ -815,7 +815,7 @@
                     rdps: gStats.rdps || 0,
                     seeds: gStats.seeds || 0,
                     qual: gStats.quality || 0,
-                    <!-- pause: gStats.paused || 0, -->
+                    pause: gStats.paused || 0,
                     proxy: gStats.proxy || 0
                 };
 
@@ -825,7 +825,7 @@
                         entityTotals.seeds = platforms.reduce((acc, p) => acc + (p.stats.seeds || 0), 0);
                         entityTotals.rdps = platforms.reduce((acc, p) => acc + (p.stats.rdps || 0), 0);
                         entityTotals.qual = platforms.reduce((acc, p) => acc + (p.stats.quality || 0), 0);
-                        <!-- entityTotals.pause = platforms.reduce((acc, p) => acc + (p.stats.paused || 0), 0); -->
+                        entityTotals.pause = platforms.reduce((acc, p) => acc + (p.stats.paused || 0), 0);
                     }
                 }
 
@@ -837,7 +837,7 @@
                      let maxPause = 0;
                      Object.values(e.platforms).forEach(p => {
                          if (p.stats.quality > maxQual) maxQual = p.stats.quality;
-                         <!-- if (p.stats.paused > maxPause) maxPause = p.stats.paused; -->
+                         if (p.stats.paused > maxPause) maxPause = p.stats.paused;
                      });
                      if (maxQual > 0) entityTotals.qual = maxQual;
                      if (maxPause > 0) entityTotals.pause = maxPause;
@@ -900,7 +900,7 @@
                     rdps: gStats.rdps || 0,
                     seeds: gStats.seeds || 0,
                     qual: gStats.quality || 0,
-                    <!-- pause: gStats.paused || 0, -->
+                    pause: gStats.paused || 0,
                     proxy: gStats.proxy || 0
                 };
 
@@ -910,7 +910,7 @@
                         entityTotals.seeds = platforms.reduce((acc, p) => acc + (p.stats.seeds || 0), 0);
                         entityTotals.rdps = platforms.reduce((acc, p) => acc + (p.stats.rdps || 0), 0);
                         entityTotals.qual = platforms.reduce((acc, p) => acc + (p.stats.quality || 0), 0);
-                        <!-- entityTotals.pause = platforms.reduce((acc, p) => acc + (p.stats.paused || 0), 0); -->
+                        entityTotals.pause = platforms.reduce((acc, p) => acc + (p.stats.paused || 0), 0);
                     }
                 }
                  
@@ -922,7 +922,7 @@
                      let maxPause = 0;
                      Object.values(entityData.platforms).forEach(p => {
                          if (p.stats.quality > maxQual) maxQual = p.stats.quality;
-                         <!-- if (p.stats.paused > maxPause) maxPause = p.stats.paused; -->
+                         if (p.stats.paused > maxPause) maxPause = p.stats.paused;
                      });
                      if (maxQual > 0) entityTotals.qual = maxQual;
                      if (maxPause > 0) entityTotals.pause = maxPause;
@@ -965,9 +965,9 @@
                                 ${renderMiniMetric('Deploys/d', s.deploysDay, 'text-indigo-600 dark:text-indigo-400')}
                                 ${renderMiniMetric('Quality', s.quality, 'text-purple-600 dark:text-purple-400')}
                                 
-                                <div class="col-span-1 lg:col-span-3">
+                                <!-- <div class="col-span-1 lg:col-span-3"> -->
                                     <!-- ${renderMiniMetric('Paused', s.paused, s.paused > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400')} -->
-                                </div>
+                                <!-- </div> -->
                             </div>
 
                             <div class="mt-3 space-y-2 pt-3 border-t border-slate-300/50 dark:border-slate-700/50">
@@ -1129,7 +1129,7 @@
             document.getElementById('edit-sessions').value = stats.sessions || 0;
             document.getElementById('edit-quality').value = stats.quality || 0;
             document.getElementById('edit-deploysHr').value = stats.deploysHr || 0;
-            <!-- document.getElementById('edit-paused').value = stats.paused || 0; -->
+            document.getElementById('edit-paused').value = stats.paused || 0;
             document.getElementById('edit-deploysDay').value = stats.deploysDay || 0;
             document.getElementById('edit-seedsHr').value = stats.seedsHr || 0;
             document.getElementById('edit-seedsDay').value = stats.seedsDay || 0;
@@ -1155,7 +1155,7 @@
             document.getElementById('edit-global-rdps').value = gStats.rdps || 0;
             document.getElementById('edit-global-seeds').value = gStats.seeds || 0;
             document.getElementById('edit-global-quality').value = gStats.quality || 0;
-            <!-- document.getElementById('edit-global-paused').value = gStats.paused || 0; -->
+            document.getElementById('edit-global-paused').value = gStats.paused || 0;
             
             setModalView('global');
             document.getElementById('editor-modal').showModal();
@@ -1266,7 +1266,7 @@
                         glb_rdps: parseInt(document.getElementById('edit-global-rdps').value) || 0,
                         "Total Seeds": parseInt(document.getElementById('edit-global-seeds').value) || 0,
                         Qualite: parseInt(document.getElementById('edit-global-quality').value) || 0,
-                        <!-- Paused: parseInt(document.getElementById('edit-global-paused').value) || 0, -->
+                        Paused: parseInt(document.getElementById('edit-global-paused').value) || 0,
                     });
                     document.getElementById('editor-modal').close();
                 } else {
@@ -1290,7 +1290,7 @@
                     sessions: parseInt(document.getElementById('edit-sessions').value) || 0,
                     quality: parseInt(document.getElementById('edit-quality').value) || 0,
                     nbrdeploysperhour: parseInt(document.getElementById('edit-deploysHr').value) || 0,
-                    <!-- paused: parseInt(document.getElementById('edit-paused').value) || 0, -->
+                    paused: parseInt(document.getElementById('edit-paused').value) || 0,
                     nbrdeploysperday: parseInt(document.getElementById('edit-deploysDay').value) || 0,
                     nbrseedsperhour: parseInt(document.getElementById('edit-seedsHr').value) || 0,
                     nbrseedsperday: parseInt(document.getElementById('edit-seedsDay').value) || 0,
