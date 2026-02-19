@@ -584,12 +584,14 @@
           }
         };
 
+        // DEPRECATED: Platform Whitelist Removed. 
+        // This object is kept just in case external code references it, but logic is removed.
         const ALLOWED_PLATFORMS = {
-            'DMF': ['SELENIUM 2'],
-            'EMS1': ['SELENIUM'],
-            'EMS3': ['WEB', 'SELENIUM', 'AUTOMAT'],
-            'EMS4': ['WEB', 'SELENIUM'],
-            'EMS6': ['WEB', 'SELENIUM', 'AUTOMAT']
+            'DMF': [],
+            'EMS1': [],
+            'EMS3': [],
+            'EMS4': [],
+            'EMS6': []
         };
 
         let ALL_ENTITY_CONFIGS = { ...BUILTIN_CONFIGS };
@@ -643,11 +645,9 @@
 
         function processPlanData(rawPlans, rootPath, entityId) {
              const platforms = {};
-             const allowed = ALLOWED_PLATFORMS[entityId];
-
+             // RESTRICTION REMOVED: Now accepting all platforms under 'plans'
+             
              Object.keys(rawPlans).forEach(key => {
-                if (allowed && !allowed.includes(key)) return;
-
                 const planData = rawPlans[key] || {};
                 const currentData = planData.current || {};
                 
