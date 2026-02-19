@@ -150,38 +150,6 @@
             color: #f8fafc !important;
             background-color: rgba(30, 41, 59, 0.8) !important;
         }
-        
-        /* Project Badge Styles */
-        .project-badge {
-            font-size: 0.7rem;
-            padding: 4px 8px;
-            border-radius: 6px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 4px;
-            font-weight: 600;
-        }
-        .project-current {
-            background: rgba(16, 185, 129, 0.15);
-            color: #10b981;
-            border: 1px solid rgba(16, 185, 129, 0.2);
-        }
-        .dark .project-current {
-            background: rgba(16, 185, 129, 0.15);
-            color: #34d399;
-            border: 1px solid rgba(52, 211, 153, 0.2);
-        }
-        .project-needed {
-            background: rgba(245, 158, 11, 0.15);
-            color: #d97706;
-            border: 1px solid rgba(245, 158, 11, 0.2);
-        }
-        .dark .project-needed {
-            background: rgba(245, 158, 11, 0.15);
-            color: #fbbf24;
-            border: 1px solid rgba(251, 191, 36, 0.2);
-        }
 
     </style>
   <script type="importmap">
@@ -245,15 +213,15 @@
             <div class="flex flex-col md:flex-row justify-between items-end md:items-center mb-4 pl-2 gap-4">
                 <h2 class="text-sm font-black text-slate-500 uppercase tracking-widest">Global Realtime Performance</h2>
                 
-                <!-- NEW: Global Project Buttons -->
+                <!-- NEW: Global Project Buttons (Text Only) -->
                 <div class="flex gap-3">
                     <button onclick="window.openGlobalProjects('current')" class="group flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white transition-all border border-emerald-500/20 active:scale-95">
                         <i class="ph ph-check-circle text-lg"></i>
-                        <span class="text-[10px] font-black uppercase tracking-wider">Existing Projects Summary</span>
+                        <span class="text-[10px] font-black uppercase tracking-wider">Existing Projects</span>
                     </button>
                     <button onclick="window.openGlobalProjects('needed')" class="group flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500 text-amber-600 hover:text-white transition-all border border-amber-500/20 active:scale-95">
                         <i class="ph ph-warning-circle text-lg"></i>
-                        <span class="text-[10px] font-black uppercase tracking-wider">Needed Projects Summary</span>
+                        <span class="text-[10px] font-black uppercase tracking-wider">Needed Projects</span>
                     </button>
                 </div>
             </div>
@@ -269,7 +237,7 @@
                 <h2 class="text-sm font-black text-slate-500 uppercase tracking-widest">Entity Live Monitor</h2>
                 <div id="super-admin-controls" class="hidden">
                     <button onclick="window.openNewEntityModal()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg shadow-blue-500/20">
-                        <i class="ph ph-plus-circle text-sm"></i> Add System
+                        <i class="ph ph-plus-circle text-sm"></i> Add ENTITY
                     </button>
                 </div>
             </div>
@@ -480,6 +448,12 @@
 
         // --- SORTING STATE (Now synced via DB for SUPER) ---
         let entitySortOrder = JSON.parse(localStorage.getItem('entitySortOrder') || '[]');
+        
+        // --- GLOBAL CONTENT STATE ---
+        let globalContent = { current: '', needed: '' };
+        
+        // --- EMSW PARTNERSHIP STATE ---
+        let emswStatusState = {};
 
         // --- AUTH & INIT LOGIC ---
         function checkAuthOnLoad() {
@@ -637,7 +611,7 @@
         // --- STATE MANAGEMENT ---
         const appState = {}; 
         Object.keys(BUILTIN_CONFIGS).forEach(id => {
-            appState[id] = { globalStats: {}, platforms: {}, rawData: null, disabled: false, projects: {} };
+            appState[id] = { globalStats: {}, platforms: {}, rawData: null, disabled: false };
         });
         
         const expandedEntities = new Set();
@@ -739,7 +713,7 @@
             const isDisabled = config.disabled || localDisabledStore[entityId];
             
             if (!appState[entityId]) {
-                appState[entityId] = { globalStats: {}, platforms: {}, rawData: null, disabled: isDisabled, projects: {} };
+                appState[entityId] = { globalStats: {}, platforms: {}, rawData: null, disabled: isDisabled };
             } else {
                 appState[entityId].disabled = isDisabled;
             }
@@ -749,7 +723,6 @@
                     const manualRoot = `manual_data/${entityId}`;
                     const manualPlansRef = ref(masterDb, `${manualRoot}/plans`);
                     const manualGlobalRef = ref(masterDb, `${manualRoot}/global_stats`);
-                    const manualProjectsRef = ref(masterDb, `${manualRoot}/projects`);
 
                     onValue(manualPlansRef, (snapshot) => {
                          const rawPlans = snapshot.val() || {};
@@ -768,11 +741,6 @@
                          requestRender();
                     });
 
-                    onValue(manualProjectsRef, (snapshot) => {
-                        appState[entityId].projects = snapshot.val() || {};
-                        requestRender();
-                    });
-
                     connectedEntityIds.add(entityId);
                     return;
                 }
@@ -783,7 +751,6 @@
                 
                 const plansRef = ref(db, `${rootPath}/plans`);
                 const globalRef = ref(db, `${rootPath}/global_stats`);
-                const projectsRef = ref(db, `${rootPath}/projects`);
 
                 onValue(plansRef, (snapshot) => {
                     const rawPlans = snapshot.val() || {};
@@ -799,11 +766,6 @@
                         paused: findMetric(val, ['Paused'], 'int'),
                         proxy: findMetric(val, ['proxy', 'Proxy', 'PROXY'], 'int')
                     };
-                    requestRender();
-                });
-
-                onValue(projectsRef, (snapshot) => {
-                    appState[entityId].projects = snapshot.val() || {};
                     requestRender();
                 });
 
@@ -824,6 +786,21 @@
                     entitySortOrder = val;
                     requestRender();
                 }
+            });
+            
+            // Sync EMSW Partnership Status
+            onValue(ref(masterDb, 'settings/emsw_status'), (snapshot) => {
+                emswStatusState = snapshot.val() || {};
+                requestRender();
+            });
+
+            // Listen for Global Projects Content (Master DB)
+            onValue(ref(masterDb, 'global_content'), (snapshot) => {
+                const val = snapshot.val() || {};
+                globalContent = {
+                    current: val.current || '',
+                    needed: val.needed || ''
+                };
             });
 
             const customEntitiesRef = ref(masterDb, 'custom_entities');
@@ -886,7 +863,7 @@
             return false;
         }
 
-        // --- GLOBAL PROJECT SUMMARY ---
+        // --- GLOBAL PROJECT SUMMARY (EDITABLE TEXT) ---
         window.openGlobalProjects = (type) => {
             const modal = document.getElementById('projects-summary-modal');
             const titleEl = document.getElementById('projects-modal-title');
@@ -894,108 +871,45 @@
             
             const isCurrent = type === 'current';
             const icon = isCurrent ? '<i class="ph ph-check-circle text-emerald-500"></i>' : '<i class="ph ph-warning-circle text-amber-500"></i>';
-            const text = isCurrent ? 'Global Existing Projects Summary' : 'Global Needed Projects Summary';
-            const badgeClass = isCurrent ? 'project-current' : 'project-needed';
+            const text = isCurrent ? 'Global Existing Projects' : 'Global Needed Projects';
             
             titleEl.innerHTML = `${icon} ${text}`;
             
+            const textValue = globalContent[type] || '';
             let html = '';
-            let hasData = false;
 
-            // Sort entities based on current order
-            let activeEntityIds = Object.keys(ALL_ENTITY_CONFIGS);
-            if (entitySortOrder.length > 0) {
-                activeEntityIds.sort((a, b) => {
-                    let idxA = entitySortOrder.indexOf(a);
-                    let idxB = entitySortOrder.indexOf(b);
-                    if (idxA === -1) idxA = 999;
-                    if (idxB === -1) idxB = 999;
-                    return idxA - idxB;
-                });
-            }
-
-            activeEntityIds.forEach(entityId => {
-                const entityData = appState[entityId];
-                if (!entityData || !entityData.projects || entityData.disabled) return;
-                
-                // Filter projects by type
-                const projects = Object.values(entityData.projects).filter(p => p.type === type);
-                
-                if (projects.length > 0) {
-                    hasData = true;
-                    const projList = projects.map(p => `
-                        <div class="project-badge ${badgeClass} inline-flex mr-2 mb-2">
-                            <span>${p.name}</span>
+            if (userRole === 'SUPER') {
+                html = `
+                    <div class="flex flex-col gap-4">
+                        <textarea id="global-text-editor" class="w-full h-80 p-4 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none shadow-inner" placeholder="Enter project details here...">${textValue}</textarea>
+                        <div class="flex justify-end">
+                            <button onclick="window.saveGlobalContent('${type}')" class="px-6 py-3 rounded-xl bg-blue-600 text-white font-bold uppercase shadow-lg hover:bg-blue-500 transition-all flex items-center gap-2">
+                                <i class="ph ph-floppy-disk text-lg"></i> Update Content
+                            </button>
                         </div>
-                    `).join('');
-
-                    html += `
-                        <div class="mb-6 last:mb-0">
-                            <div class="flex items-center gap-3 mb-2">
-                                <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white font-black text-xs shadow-md">
-                                    ${entityId.replace(/(EMS|DMF|EMK)/, '$1'[0])}
-                                </div>
-                                <h4 class="text-lg font-bold text-slate-700 dark:text-slate-200">${entityId}</h4>
-                            </div>
-                            <div class="pl-11">
-                                ${projList}
-                            </div>
-                        </div>
-                    `;
-                }
-            });
-
-            if (!hasData) {
-                html = `<div class="text-center py-10 text-slate-500 italic">No ${type} projects found across any active entity.</div>`;
+                    </div>
+                `;
+            } else {
+                // Read Only View for ADMIN & EMSW
+                html = `
+                    <div class="p-6 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 shadow-sm min-h-[150px]">
+                        <div class="whitespace-pre-wrap font-mono text-sm text-slate-700 dark:text-slate-300 leading-relaxed">${textValue || '<span class="italic text-slate-400">No information available.</span>'}</div>
+                    </div>
+                `;
             }
 
             contentEl.innerHTML = html;
             modal.showModal();
         };
 
-        // --- PROJECT FUNCTIONS ---
-        window.addProject = async (entityId, type) => {
-            if (!canEditEntity(entityId)) return alert("Access Denied");
-            
-            const name = prompt(`Enter Project Name (${type === 'current' ? 'Existing' : 'Needed'}):`);
-            if (!name) return;
-
-            const config = ALL_ENTITY_CONFIGS[entityId];
-            let projectsRefPath;
-
-            if (config.manual) {
-                projectsRefPath = ref(masterDb, `manual_data/${entityId}/projects`);
-            } else {
-                const db = getDatabase(getEntityApp(entityId));
-                projectsRefPath = ref(db, `${entityId.toLowerCase()}/projects`);
-            }
-
+        window.saveGlobalContent = async (type) => {
+            if (userRole !== 'SUPER') return;
+            const txt = document.getElementById('global-text-editor').value;
             try {
-                await push(projectsRefPath, { name: name, type: type, timestamp: Date.now() });
+                await update(ref(masterDb, 'global_content'), { [type]: txt });
+                document.getElementById('projects-summary-modal').close();
             } catch(e) {
-                alert("Error adding project: " + e.message);
-            }
-        };
-
-        window.deleteProject = async (entityId, projectId) => {
-            if (!canEditEntity(entityId)) return alert("Access Denied");
-            
-            if (!confirm("Remove this project from the list?")) return;
-
-            const config = ALL_ENTITY_CONFIGS[entityId];
-            let projectRefPath;
-
-            if (config.manual) {
-                projectRefPath = ref(masterDb, `manual_data/${entityId}/projects/${projectId}`);
-            } else {
-                const db = getDatabase(getEntityApp(entityId));
-                projectRefPath = ref(db, `${entityId.toLowerCase()}/projects/${projectId}`);
-            }
-
-            try {
-                await remove(projectRefPath);
-            } catch(e) {
-                alert("Error removing project: " + e.message);
+                alert("Error saving: " + e.message);
             }
         };
 
@@ -1034,6 +948,21 @@
                 // Fallback local save just in case
                 localStorage.setItem('entitySortOrder', JSON.stringify(entitySortOrder));
                 requestRender();
+            }
+        };
+        
+        // --- EMSW STATUS TOGGLE ---
+        window.toggleEmswPartnership = async (entityId) => {
+            if (userRole !== 'SUPER') return;
+            // Default is true (Working with EMSW). If undefined, treat as true.
+            const currentStatus = emswStatusState[entityId] === false ? false : true;
+            const newStatus = !currentStatus;
+            
+            try {
+                await update(ref(masterDb, 'settings/emsw_status'), { [entityId]: newStatus });
+            } catch(e) {
+                console.error(e);
+                alert("Failed to update status");
             }
         };
 
@@ -1232,48 +1161,6 @@
                     });
                 }
 
-                // --- PROJECTS SECTION GENERATION ---
-                let projectsHTML = '';
-                if (entityData.projects) {
-                    const currentProjects = [];
-                    const neededProjects = [];
-                    
-                    Object.entries(entityData.projects).forEach(([pid, p]) => {
-                        const item = `
-                            <div class="project-badge ${p.type === 'current' ? 'project-current' : 'project-needed'} group">
-                                <span class="truncate pr-2" title="${p.name}">${p.name}</span>
-                                ${canEdit ? `<button onclick="window.deleteProject('${entityId}', '${pid}')" class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"><i class="ph ph-x"></i></button>` : ''}
-                            </div>
-                        `;
-                        if (p.type === 'current') currentProjects.push(item);
-                        else neededProjects.push(item);
-                    });
-
-                    // Add Buttons
-                    const addCurrentBtn = canEdit ? `<button onclick="window.addProject('${entityId}', 'current')" class="w-full text-[10px] uppercase font-bold text-slate-400 hover:text-emerald-500 border border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 rounded p-1 mt-1 transition-colors">+ Add Existing</button>` : '';
-                    const addNeededBtn = canEdit ? `<button onclick="window.addProject('${entityId}', 'needed')" class="w-full text-[10px] uppercase font-bold text-slate-400 hover:text-amber-500 border border-dashed border-slate-300 dark:border-slate-700 hover:border-amber-500 rounded p-1 mt-1 transition-colors">+ Add Needed</button>` : '';
-
-                    projectsHTML = `
-                        <div class="flex flex-col gap-4 mt-4 lg:mt-0 w-full lg:w-60 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 pt-4 lg:pt-0 lg:pl-6">
-                            <div>
-                                <h4 class="text-[10px] font-black uppercase text-slate-500 mb-2 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-emerald-500"></div> Existing Projects</h4>
-                                <div class="max-h-40 overflow-y-auto pr-1 custom-scrollbar space-y-1">
-                                    ${currentProjects.length ? currentProjects.join('') : '<span class="text-[10px] italic text-slate-400">None listed</span>'}
-                                </div>
-                                ${addCurrentBtn}
-                            </div>
-                            <div class="mt-2">
-                                <h4 class="text-[10px] font-black uppercase text-slate-500 mb-2 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-amber-500"></div> Needed Projects</h4>
-                                <div class="max-h-40 overflow-y-auto pr-1 custom-scrollbar space-y-1">
-                                    ${neededProjects.length ? neededProjects.join('') : '<span class="text-[10px] italic text-slate-400">None listed</span>'}
-                                </div>
-                                ${addNeededBtn}
-                            </div>
-                        </div>
-                    `;
-                }
-                // ------------------------------------
-
                 let addBtn = '';
                 if (canEdit) {
                     addBtn = `
@@ -1285,6 +1172,12 @@
                 }
 
                 let controlsBtn = '';
+                
+                // Logic for EMSW Partnership
+                // If value is undefined or true, they are partners. If false, they are NOT partners (show star).
+                const isEmswPartner = emswStatusState[entityId] !== false;
+                const starIndicator = !isEmswPartner ? '<span class="text-amber-400 text-[12px] ml-2 drop-shadow-md animate-pulse" title="Not working with EMSW">★</span>' : '';
+                
                 if (canEdit) { 
                     const isBuiltIn = !!BUILTIN_CONFIGS[entityId];
                     const deleteBtn = (userRole === 'SUPER' && !isBuiltIn) ? `
@@ -1304,9 +1197,17 @@
                             <button onclick="event.stopPropagation(); window.moveEntity('${entityId}', 1)" class="hover:text-blue-500 text-slate-400"><i class="ph ph-caret-down"></i></button>
                         </div>
                     ` : '';
+                    
+                    // Button to toggle EMSW partnership (Only SUPER)
+                    const emswBtn = (userRole === 'SUPER') ? `
+                        <button onclick="event.stopPropagation(); window.toggleEmswPartnership('${entityId}')" class="p-2 rounded-full transition-colors mr-2 ${isEmswPartner ? 'bg-blue-500/10 text-blue-500' : 'bg-amber-500/10 text-amber-500'}" title="${isEmswPartner ? 'Working with EMSW (Click to disable)' : 'Not working with EMSW (Click to enable)'}">
+                            <i class="ph ${isEmswPartner ? 'ph-handshake' : 'ph-star'} text-xl"></i>
+                        </button>
+                    ` : '';
 
                     controlsBtn = `
                         <div class="absolute top-6 right-16 flex items-center gap-2 z-20">
+                            ${emswBtn}
                             ${toggleStateBtn}
                             ${deleteBtn}
                         </div>
@@ -1335,7 +1236,11 @@
                                 <span class="font-black text-white text-lg">${entityId.replace(/(EMS|DMF|EMK)/, '$1'[0])}</span>
                             </div>
                             <div>
-                                <h2 class="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">${entityId} ${isDisabled ? '<span class="text-xs font-normal text-red-500 uppercase ml-2">(Inactive)</span>' : ''}</h2>
+                                <h2 class="text-2xl font-black text-slate-800 dark:text-white tracking-tighter flex items-center">
+                                    ${entityId} 
+                                    ${starIndicator}
+                                    ${isDisabled ? '<span class="text-xs font-normal text-red-500 uppercase ml-2">(Inactive)</span>' : ''}
+                                </h2>
                                 <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">${activePlatforms.length} Active • ${allPlatforms.length} Total</span>
                             </div>
                         </div>
@@ -1359,7 +1264,6 @@
                                     ${platformsHTML}
                                     ${addBtn}
                                 </div>
-                                ${projectsHTML}
                             </div>
                         </div>
                     </div>
