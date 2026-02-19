@@ -150,6 +150,39 @@
             color: #f8fafc !important;
             background-color: rgba(30, 41, 59, 0.8) !important;
         }
+        
+        /* Project Badge Styles */
+        .project-badge {
+            font-size: 0.7rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .project-current {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+        .dark .project-current {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(52, 211, 153, 0.2);
+        }
+        .project-needed {
+            background: rgba(245, 158, 11, 0.15);
+            color: #d97706;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+        .dark .project-needed {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.2);
+        }
+
     </style>
   <script type="importmap">
 {
@@ -209,7 +242,22 @@
 
         <!-- Global Stats Section -->
         <section class="mb-12 animate-fade-in">
-            <h2 class="text-sm font-black text-slate-500 uppercase tracking-widest mb-4 pl-2">Global Realtime Performance</h2>
+            <div class="flex flex-col md:flex-row justify-between items-end md:items-center mb-4 pl-2 gap-4">
+                <h2 class="text-sm font-black text-slate-500 uppercase tracking-widest">Global Realtime Performance</h2>
+                
+                <!-- NEW: Global Project Buttons -->
+                <div class="flex gap-3">
+                    <button onclick="window.openGlobalProjects('current')" class="group flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white transition-all border border-emerald-500/20 active:scale-95">
+                        <i class="ph ph-check-circle text-lg"></i>
+                        <span class="text-[10px] font-black uppercase tracking-wider">Existing Projects Summary</span>
+                    </button>
+                    <button onclick="window.openGlobalProjects('needed')" class="group flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500 text-amber-600 hover:text-white transition-all border border-amber-500/20 active:scale-95">
+                        <i class="ph ph-warning-circle text-lg"></i>
+                        <span class="text-[10px] font-black uppercase tracking-wider">Needed Projects Summary</span>
+                    </button>
+                </div>
+            </div>
+
             <div id="global-stats-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 <div class="col-span-full flex justify-center py-8"><div class="loader"></div></div>
             </div>
@@ -235,6 +283,24 @@
         </footer>
     </div>
 
+    <!-- Projects Summary Modal -->
+    <dialog id="projects-summary-modal" class="backdrop:backdrop-blur-sm p-0 rounded-2xl shadow-2xl overflow-hidden max-w-2xl w-full m-auto">
+        <div class="glass-card p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 max-h-[85vh] overflow-y-auto flex flex-col">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-200 dark:border-slate-800 pb-4">
+                <h3 class="text-xl font-black text-slate-800 dark:text-white flex items-center gap-3" id="projects-modal-title">
+                    <!-- Title injected via JS -->
+                </h3>
+                <button onclick="document.getElementById('projects-summary-modal').close()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+            
+            <div id="projects-modal-content" class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+                <!-- Content injected via JS -->
+            </div>
+        </div>
+    </dialog>
+
     <!-- Edit/Add Modal -->
     <dialog id="editor-modal" class="backdrop:backdrop-blur-sm p-0 rounded-2xl shadow-2xl overflow-hidden max-w-lg w-full m-auto">
         <div class="glass-card p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
@@ -247,36 +313,25 @@
                 <!-- NEW PLATFORM FIELDS -->
                 <div id="new-platform-fields" class="space-y-3 hidden">
                     <div id="new-platform-name-group">
-                        <label class="text-[10px] uppercase font-bold text-slate-500">Platform Name</label>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Platform Name <span class="text-red-500">*</span></label>
                         <input type="text" id="edit-name" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
                     </div>
                 </div>
 
-                <!-- EDIT GLOBAL FIELDS (For Entity Summary) -->
+                <!-- EDIT GLOBAL FIELDS (For Entity Summary - Only RDPs and Proxy) -->
                 <div id="edit-global-fields" class="hidden grid grid-cols-2 gap-3">
                     <div class="col-span-2">
-                        <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-xs text-amber-600 dark:text-amber-300 mb-2">
-                             <p class="font-bold">Edit Global Entity Stats (Live Monitor)</p>
+                        <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-600 dark:text-blue-300 mb-2">
+                             <p class="font-bold">Manual Global Stats</p>
+                             <p class="opacity-75 mt-1">Seeds and Quality are calculated automatically as the sum of all platforms.</p>
                         </div>
                     </div>
                     <div>
-                        <label class="text-[10px] uppercase font-bold text-slate-500">Total RDPs (glb_rdps)</label>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Total RDPs (Manual)</label>
                         <input type="number" id="edit-global-rdps" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
                     </div>
                     <div>
-                        <label class="text-[10px] uppercase font-bold text-slate-500">Total Seeds</label>
-                        <input type="number" id="edit-global-seeds" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
-                    </div>
-                    <div>
-                        <label class="text-[10px] uppercase font-bold text-slate-500">Quality</label>
-                        <input type="number" id="edit-global-quality" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
-                    </div>
-                    <!-- <div> -->
-                        <!-- <label class="text-[10px] uppercase font-bold text-slate-500">Paused</label> -->
-                        <!-- <input type="number" id="edit-global-paused" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm"> -->
-                    <!-- </div> -->
-                    <div class="col-span-2">
-                        <label class="text-[10px] uppercase font-bold text-slate-500">Proxy</label>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Proxy (Manual)</label>
                         <input type="number" id="edit-global-proxy" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
                     </div>
                 </div>
@@ -284,27 +339,28 @@
                 <!-- EDIT DATA FIELDS (Expanded) -->
                 <div id="edit-data-fields" class="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <div>
-                        <label class="text-[10px] uppercase font-bold text-slate-500">Seeds</label>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Seeds <span class="text-red-500">*</span></label>
                         <input type="number" id="edit-seeds" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
                     </div>
                     <div>
-                        <label class="text-[10px] uppercase font-bold text-slate-500">RDPs</label>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">RDPs <span class="text-red-500">*</span></label>
                         <input type="number" id="edit-rdps" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
                     </div>
                     <div>
-                        <label class="text-[10px] uppercase font-bold text-slate-500">Sessions</label>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Sessions <span class="text-red-500">*</span></label>
                         <input type="number" id="edit-sessions" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
                     </div>
                     <div>
                         <label class="text-[10px] uppercase font-bold text-slate-500">Quality</label>
                         <input type="number" id="edit-quality" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
                     </div>
-                     <!-- <div> -->
-                        <!-- <label class="text-[10px] uppercase font-bold text-slate-500">Paused (0/1)</label> -->
-                        <!-- <input type="number" id="edit-paused" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm"> -->
-                    <!-- </div> -->
+                     <!-- HIDDEN BUT ACCESSIBLE BY JS -->
+                     <div class="hidden">
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Paused (0/1)</label>
+                        <input type="number" id="edit-paused" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
+                    </div>
                     <div>
-                        <label class="text-[10px] uppercase font-bold text-slate-500">Launches</label>
+                        <label class="text-[10px] uppercase font-bold text-slate-500">Launches <span class="text-red-500">*</span></label>
                         <input type="number" id="edit-lancements" class="w-full bg-slate-100 dark:bg-slate-800 p-2 rounded border border-slate-300 dark:border-slate-600 dark:text-white font-mono text-sm">
                     </div>
                     
@@ -402,16 +458,28 @@
     <!-- Application Logic -->
     <script type="module">
         import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
-        import { getDatabase, ref, onValue, update, set, remove } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js';
+        import { getDatabase, ref, onValue, update, set, remove, push } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js';
 
         // --- AUTH CONFIG ---
         const AUTH_URL = "https://dashboard-emsw.alamiuness.workers.dev";
         
-        // Allowed Entities for EMSW Role
-        const EMSW_ALLOWED_ENTITIES = ['EMK1', 'EMK2', 'EMK3', 'EMH'];
+        // Allowed Entities for EMSW Role - Restricted to specified IDs
+        const EMSW_ALLOWED_ENTITIES = ['EMH', 'EMK1', 'EMK2', 'EMK3'];
 
         // Default to viewer initially
         let userRole = 'VIEWER'; 
+
+        // --- SAFE DOM HELPERS ---
+        // Prevent crashes if an input element is commented out or missing
+        const getVal = (id) => document.getElementById(id)?.value || '';
+        const getInt = (id) => {
+            const val = document.getElementById(id)?.value;
+            return val === '' ? null : (parseInt(val) || 0);
+        };
+        const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val; };
+
+        // --- SORTING STATE (Now synced via DB for SUPER) ---
+        let entitySortOrder = JSON.parse(localStorage.getItem('entitySortOrder') || '[]');
 
         // --- AUTH & INIT LOGIC ---
         function checkAuthOnLoad() {
@@ -569,7 +637,7 @@
         // --- STATE MANAGEMENT ---
         const appState = {}; 
         Object.keys(BUILTIN_CONFIGS).forEach(id => {
-            appState[id] = { globalStats: {}, platforms: {}, rawData: null, disabled: false };
+            appState[id] = { globalStats: {}, platforms: {}, rawData: null, disabled: false, projects: {} };
         });
         
         const expandedEntities = new Set();
@@ -671,7 +739,7 @@
             const isDisabled = config.disabled || localDisabledStore[entityId];
             
             if (!appState[entityId]) {
-                appState[entityId] = { globalStats: {}, platforms: {}, rawData: null, disabled: isDisabled };
+                appState[entityId] = { globalStats: {}, platforms: {}, rawData: null, disabled: isDisabled, projects: {} };
             } else {
                 appState[entityId].disabled = isDisabled;
             }
@@ -681,6 +749,7 @@
                     const manualRoot = `manual_data/${entityId}`;
                     const manualPlansRef = ref(masterDb, `${manualRoot}/plans`);
                     const manualGlobalRef = ref(masterDb, `${manualRoot}/global_stats`);
+                    const manualProjectsRef = ref(masterDb, `${manualRoot}/projects`);
 
                     onValue(manualPlansRef, (snapshot) => {
                          const rawPlans = snapshot.val() || {};
@@ -693,12 +762,15 @@
                          const val = snapshot.val() || {};
                          appState[entityId].globalStats = {
                              rdps: findMetric(val, ['glb_rdps', 'Total RDPs', 'RDPs'], 'int'),
-                             seeds: findMetric(val, ['Total Seeds', 'Seeds', 'SEEDS'], 'int'),
-                             quality: findMetric(val, ['Qualite', 'Quality'], 'int'),
                              paused: findMetric(val, ['Paused'], 'int'),
                              proxy: findMetric(val, ['proxy', 'Proxy'], 'int')
                          };
                          requestRender();
+                    });
+
+                    onValue(manualProjectsRef, (snapshot) => {
+                        appState[entityId].projects = snapshot.val() || {};
+                        requestRender();
                     });
 
                     connectedEntityIds.add(entityId);
@@ -711,6 +783,7 @@
                 
                 const plansRef = ref(db, `${rootPath}/plans`);
                 const globalRef = ref(db, `${rootPath}/global_stats`);
+                const projectsRef = ref(db, `${rootPath}/projects`);
 
                 onValue(plansRef, (snapshot) => {
                     const rawPlans = snapshot.val() || {};
@@ -723,11 +796,14 @@
                     const val = snapshot.val() || {};
                     appState[entityId].globalStats = {
                         rdps: findMetric(val, ['glb_rdps', 'Total RDPs', 'RDPs'], 'int'),
-                        seeds: findMetric(val, ['Total Seeds', 'Seeds', 'SEEDS'], 'int'),
-                        quality: findMetric(val, ['Qualite', 'Quality'], 'int'),
                         paused: findMetric(val, ['Paused'], 'int'),
                         proxy: findMetric(val, ['proxy', 'Proxy', 'PROXY'], 'int')
                     };
+                    requestRender();
+                });
+
+                onValue(projectsRef, (snapshot) => {
+                    appState[entityId].projects = snapshot.val() || {};
                     requestRender();
                 });
 
@@ -740,6 +816,15 @@
         // --- MAIN INIT FUNCTION ---
         function setupRealtimeListeners() {
             Object.keys(BUILTIN_CONFIGS).forEach(id => connectEntity(id));
+
+            // Sync Entity Order from DB
+            onValue(ref(masterDb, 'settings/entity_order'), (snapshot) => {
+                const val = snapshot.val();
+                if(val && Array.isArray(val)) {
+                    entitySortOrder = val;
+                    requestRender();
+                }
+            });
 
             const customEntitiesRef = ref(masterDb, 'custom_entities');
             onValue(customEntitiesRef, (snapshot) => {
@@ -801,9 +886,198 @@
             return false;
         }
 
+        // --- GLOBAL PROJECT SUMMARY ---
+        window.openGlobalProjects = (type) => {
+            const modal = document.getElementById('projects-summary-modal');
+            const titleEl = document.getElementById('projects-modal-title');
+            const contentEl = document.getElementById('projects-modal-content');
+            
+            const isCurrent = type === 'current';
+            const icon = isCurrent ? '<i class="ph ph-check-circle text-emerald-500"></i>' : '<i class="ph ph-warning-circle text-amber-500"></i>';
+            const text = isCurrent ? 'Global Existing Projects Summary' : 'Global Needed Projects Summary';
+            const badgeClass = isCurrent ? 'project-current' : 'project-needed';
+            
+            titleEl.innerHTML = `${icon} ${text}`;
+            
+            let html = '';
+            let hasData = false;
+
+            // Sort entities based on current order
+            let activeEntityIds = Object.keys(ALL_ENTITY_CONFIGS);
+            if (entitySortOrder.length > 0) {
+                activeEntityIds.sort((a, b) => {
+                    let idxA = entitySortOrder.indexOf(a);
+                    let idxB = entitySortOrder.indexOf(b);
+                    if (idxA === -1) idxA = 999;
+                    if (idxB === -1) idxB = 999;
+                    return idxA - idxB;
+                });
+            }
+
+            activeEntityIds.forEach(entityId => {
+                const entityData = appState[entityId];
+                if (!entityData || !entityData.projects || entityData.disabled) return;
+                
+                // Filter projects by type
+                const projects = Object.values(entityData.projects).filter(p => p.type === type);
+                
+                if (projects.length > 0) {
+                    hasData = true;
+                    const projList = projects.map(p => `
+                        <div class="project-badge ${badgeClass} inline-flex mr-2 mb-2">
+                            <span>${p.name}</span>
+                        </div>
+                    `).join('');
+
+                    html += `
+                        <div class="mb-6 last:mb-0">
+                            <div class="flex items-center gap-3 mb-2">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white font-black text-xs shadow-md">
+                                    ${entityId.replace(/(EMS|DMF|EMK)/, '$1'[0])}
+                                </div>
+                                <h4 class="text-lg font-bold text-slate-700 dark:text-slate-200">${entityId}</h4>
+                            </div>
+                            <div class="pl-11">
+                                ${projList}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            if (!hasData) {
+                html = `<div class="text-center py-10 text-slate-500 italic">No ${type} projects found across any active entity.</div>`;
+            }
+
+            contentEl.innerHTML = html;
+            modal.showModal();
+        };
+
+        // --- PROJECT FUNCTIONS ---
+        window.addProject = async (entityId, type) => {
+            if (!canEditEntity(entityId)) return alert("Access Denied");
+            
+            const name = prompt(`Enter Project Name (${type === 'current' ? 'Existing' : 'Needed'}):`);
+            if (!name) return;
+
+            const config = ALL_ENTITY_CONFIGS[entityId];
+            let projectsRefPath;
+
+            if (config.manual) {
+                projectsRefPath = ref(masterDb, `manual_data/${entityId}/projects`);
+            } else {
+                const db = getDatabase(getEntityApp(entityId));
+                projectsRefPath = ref(db, `${entityId.toLowerCase()}/projects`);
+            }
+
+            try {
+                await push(projectsRefPath, { name: name, type: type, timestamp: Date.now() });
+            } catch(e) {
+                alert("Error adding project: " + e.message);
+            }
+        };
+
+        window.deleteProject = async (entityId, projectId) => {
+            if (!canEditEntity(entityId)) return alert("Access Denied");
+            
+            if (!confirm("Remove this project from the list?")) return;
+
+            const config = ALL_ENTITY_CONFIGS[entityId];
+            let projectRefPath;
+
+            if (config.manual) {
+                projectRefPath = ref(masterDb, `manual_data/${entityId}/projects/${projectId}`);
+            } else {
+                const db = getDatabase(getEntityApp(entityId));
+                projectRefPath = ref(db, `${entityId.toLowerCase()}/projects/${projectId}`);
+            }
+
+            try {
+                await remove(projectRefPath);
+            } catch(e) {
+                alert("Error removing project: " + e.message);
+            }
+        };
+
+        // --- SORTING FUNCTION ---
+        window.moveEntity = async (entityId, direction) => {
+            if(userRole !== 'SUPER') return;
+            
+            // If not found in current sort order, rebuild the list first based on current view
+            let currentList = [...entitySortOrder];
+            
+            // Ensure all current keys are in the list
+            const allKeys = Object.keys(ALL_ENTITY_CONFIGS);
+            allKeys.forEach(k => { if(!currentList.includes(k)) currentList.push(k); });
+            
+            // Remove keys that no longer exist
+            currentList = currentList.filter(k => allKeys.includes(k));
+
+            const currentIdx = currentList.indexOf(entityId);
+            if (currentIdx === -1) return;
+
+            const newIdx = currentIdx + direction;
+            if (newIdx < 0 || newIdx >= currentList.length) return;
+
+            // Swap
+            const temp = currentList[newIdx];
+            currentList[newIdx] = currentList[currentIdx];
+            currentList[currentIdx] = temp;
+
+            entitySortOrder = currentList;
+            
+            // Persist to Firebase so EMSW users see it
+            try {
+                await set(ref(masterDb, 'settings/entity_order'), entitySortOrder);
+            } catch(e) {
+                console.error("Failed to sync sort order", e);
+                // Fallback local save just in case
+                localStorage.setItem('entitySortOrder', JSON.stringify(entitySortOrder));
+                requestRender();
+            }
+        };
+
+        window.deletePlatform = async (entityId, platformId) => {
+             // ALLOW EMSW role if they have permission for this specific entity
+             if (!canEditEntity(entityId)) {
+                 return alert("Access Denied: You do not have permission to delete platforms for " + entityId);
+             }
+             
+             if (!confirm(`Are you sure you want to delete the platform "${platformId}" from ${entityId}?`)) return;
+
+             try {
+                const entityConfig = ALL_ENTITY_CONFIGS[entityId];
+                if (entityConfig && entityConfig.manual) {
+                    const path = `manual_data/${entityId}/plans/${platformId}`;
+                    await remove(ref(masterDb, path));
+                } else {
+                    const app = getEntityApp(entityId);
+                    const db = getDatabase(app);
+                    const path = `${entityId.toLowerCase()}/plans/${platformId}`;
+                    await remove(ref(db, path));
+                }
+             } catch(err) {
+                 alert("Error deleting platform: " + err.message);
+             }
+        };
+
         function renderUI() {
             const globalTotals = { rdps: 0, seeds: 0, qual: 0, pause: 0, proxy: 0, sessions: 0, deploysHr: 0, deploysDay: 0, lancements: 0, seedsHr: 0, seedsDay: 0 };
-            const activeEntityIds = Object.keys(ALL_ENTITY_CONFIGS);
+            
+            // Sorting Logic from DB
+            let activeEntityIds = Object.keys(ALL_ENTITY_CONFIGS);
+            
+            if (entitySortOrder.length > 0) {
+                activeEntityIds.sort((a, b) => {
+                    let idxA = entitySortOrder.indexOf(a);
+                    let idxB = entitySortOrder.indexOf(b);
+                    // Treat unsorted items as appearing at the end
+                    if (idxA === -1) idxA = 999;
+                    if (idxB === -1) idxB = 999;
+                    return idxA - idxB;
+                });
+            }
+
             let totalQualitySum = 0;
 
             activeEntityIds.forEach(entityId => {
@@ -811,37 +1085,33 @@
                 if (!e || e.disabled) return; 
                 
                 const gStats = e.globalStats || {};
+                
+                let calcSeeds = 0;
+                let calcQual = 0;
+                let calcPause = 0;
+                
+                const platforms = Object.values(e.platforms);
+                
+                platforms.forEach(p => {
+                    calcSeeds += (p.stats.seeds || 0);
+                    calcQual += (p.stats.quality || 0);
+                    calcPause += (p.stats.paused || 0);
+                    
+                    globalTotals.sessions += p.stats.sessions;
+                    globalTotals.deploysHr += p.stats.deploysHr;
+                    globalTotals.deploysDay += p.stats.deploysDay;
+                    globalTotals.lancements += p.stats.lancements;
+                    globalTotals.seedsHr += p.stats.seedsHr;
+                    globalTotals.seedsDay += p.stats.seedsDay;
+                });
+
                 let entityTotals = {
                     rdps: gStats.rdps || 0,
-                    seeds: gStats.seeds || 0,
-                    qual: gStats.quality || 0,
-                    pause: gStats.paused || 0,
+                    seeds: calcSeeds,
+                    qual: calcQual,
+                    pause: calcPause,
                     proxy: gStats.proxy || 0
                 };
-
-                if (ALL_ENTITY_CONFIGS[entityId] && ALL_ENTITY_CONFIGS[entityId].manual) {
-                    const platforms = Object.values(e.platforms);
-                    if (platforms.length > 0) {
-                        entityTotals.seeds = platforms.reduce((acc, p) => acc + (p.stats.seeds || 0), 0);
-                        entityTotals.rdps = platforms.reduce((acc, p) => acc + (p.stats.rdps || 0), 0);
-                        entityTotals.qual = platforms.reduce((acc, p) => acc + (p.stats.quality || 0), 0);
-                        entityTotals.pause = platforms.reduce((acc, p) => acc + (p.stats.paused || 0), 0);
-                    }
-                }
-
-                if (entityId === 'EMS1') entityTotals.seeds = 12690;
-                if (entityId === 'DMF') entityTotals.seeds = 16867;
-
-                if (['EMS3', 'EMS4', 'EMS6'].includes(entityId)) {
-                     let maxQual = 0;
-                     let maxPause = 0;
-                     Object.values(e.platforms).forEach(p => {
-                         if (p.stats.quality > maxQual) maxQual = p.stats.quality;
-                         if (p.stats.paused > maxPause) maxPause = p.stats.paused;
-                     });
-                     if (maxQual > 0) entityTotals.qual = maxQual;
-                     if (maxPause > 0) entityTotals.pause = maxPause;
-                }
 
                 globalTotals.rdps += entityTotals.rdps;
                 globalTotals.seeds += entityTotals.seeds;
@@ -851,15 +1121,6 @@
                 if (entityTotals.qual > 0) {
                      totalQualitySum += entityTotals.qual;
                 }
-
-                Object.values(e.platforms).forEach(p => {
-                    globalTotals.sessions += p.stats.sessions;
-                    globalTotals.deploysHr += p.stats.deploysHr;
-                    globalTotals.deploysDay += p.stats.deploysDay;
-                    globalTotals.lancements += p.stats.lancements;
-                    globalTotals.seedsHr += p.stats.seedsHr;
-                    globalTotals.seedsDay += p.stats.seedsDay;
-                });
             });
 
             globalTotals.qual = totalQualitySum;
@@ -877,7 +1138,6 @@
                 ${renderStatCard('Total Seeds/day', globalTotals.seedsDay, 'text-teal-600 dark:text-teal-400')}
                 
                 ${renderStatCard('Total Quality', globalTotals.qual, 'text-purple-500 dark:text-purple-400')}
-                <!-- ${renderStatCard('Total Paused', globalTotals.pause, 'text-rose-500 dark:text-rose-400')} -->
                 ${renderStatCard('Total Proxy', globalTotals.proxy, 'text-amber-500 dark:text-amber-400')}
             `;
 
@@ -886,47 +1146,31 @@
                 if (!entityData) return ''; 
 
                 const isDisabled = entityData.disabled;
-                const isManual = ALL_ENTITY_CONFIGS[entityId].manual;
                 const opacityClass = isDisabled ? 'disabled-entity' : '';
                 const isExpanded = expandedEntities.has(entityId);
                 const allPlatforms = Object.entries(entityData.platforms);
                 const activePlatforms = allPlatforms.filter(([_, data]) => data.stats.lancements > 0);
                 const gStats = entityData.globalStats || {};
                 
-                // Determine if user can edit this specific entity
                 const canEdit = canEditEntity(entityId);
+
+                // Recalculate per entity
+                let calcSeeds = 0;
+                let calcQual = 0;
+                let calcPause = 0;
+                Object.values(entityData.platforms).forEach(p => {
+                    calcSeeds += (p.stats.seeds || 0);
+                    calcQual += (p.stats.quality || 0);
+                    calcPause += (p.stats.paused || 0);
+                });
 
                 let entityTotals = {
                     rdps: gStats.rdps || 0,
-                    seeds: gStats.seeds || 0,
-                    qual: gStats.quality || 0,
-                    pause: gStats.paused || 0,
+                    seeds: calcSeeds,
+                    qual: calcQual,
+                    pause: calcPause,
                     proxy: gStats.proxy || 0
                 };
-
-                if (ALL_ENTITY_CONFIGS[entityId] && ALL_ENTITY_CONFIGS[entityId].manual) {
-                    const platforms = Object.values(entityData.platforms);
-                    if (platforms.length > 0) {
-                        entityTotals.seeds = platforms.reduce((acc, p) => acc + (p.stats.seeds || 0), 0);
-                        entityTotals.rdps = platforms.reduce((acc, p) => acc + (p.stats.rdps || 0), 0);
-                        entityTotals.qual = platforms.reduce((acc, p) => acc + (p.stats.quality || 0), 0);
-                        entityTotals.pause = platforms.reduce((acc, p) => acc + (p.stats.paused || 0), 0);
-                    }
-                }
-                 
-                if (entityId === 'EMS1') entityTotals.seeds = 12690;
-                if (entityId === 'DMF') entityTotals.seeds = 16867;
-
-                if (['EMS3', 'EMS4', 'EMS6'].includes(entityId)) {
-                     let maxQual = 0;
-                     let maxPause = 0;
-                     Object.values(entityData.platforms).forEach(p => {
-                         if (p.stats.quality > maxQual) maxQual = p.stats.quality;
-                         if (p.stats.paused > maxPause) maxPause = p.stats.paused;
-                     });
-                     if (maxQual > 0) entityTotals.qual = maxQual;
-                     if (maxPause > 0) entityTotals.pause = maxPause;
-                }
 
                 let platformsHTML = '';
                 const platformListToRender = userRole === 'SUPER' ? allPlatforms : activePlatforms;
@@ -939,16 +1183,24 @@
                         const time = pData.updatedAt ? (pData.updatedAt.split(' ')[1] || pData.updatedAt) : '';
                         
                         const editBtn = canEdit ? `
-                            <button onclick="window.openEditModal('${entityId}', '${pName}')" class="absolute top-2 right-2 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-400 hover:text-blue-500 transition-colors z-10">
+                            <button onclick="window.openEditModal('${entityId}', '${pName}')" class="absolute top-2 right-2 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-slate-400 hover:text-blue-500 transition-colors z-10" title="Edit">
                                 <i class="ph ph-pencil-simple"></i>
+                            </button>
+                        ` : '';
+
+                        // Allow Delete for EMSW too if they have permission
+                        const deletePlatformBtn = canEdit ? `
+                            <button onclick="window.deletePlatform('${entityId}', '${pName}')" class="absolute top-2 right-8 p-1 rounded hover:bg-rose-500/10 text-slate-400 hover:text-rose-500 transition-colors z-10" title="Delete Platform">
+                                <i class="ph ph-trash"></i>
                             </button>
                         ` : '';
 
                         platformsHTML += `
                         <div class="relative bg-slate-200/50 dark:bg-slate-800/40 rounded-xl p-4 border border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/10 transition-colors flex flex-col h-full group">
                             ${editBtn}
-                            <div class="flex justify-between items-start mb-3 pr-6">
-                                <h4 class="font-black text-sm text-indigo-500 dark:text-indigo-300 uppercase truncate max-w-[70%]" title="${pName}">${pName}</h4>
+                            ${deletePlatformBtn}
+                            <div class="flex justify-between items-start mb-3 pr-12">
+                                <h4 class="font-black text-sm text-indigo-500 dark:text-indigo-300 uppercase truncate max-w-[85%]" title="${pName}">${pName}</h4>
                                 ${time ? `<span class="text-[9px] text-slate-500 bg-white/50 dark:bg-slate-900/50 px-2 py-0.5 rounded whitespace-nowrap">${time}</span>` : ''}
                             </div>
                             
@@ -964,15 +1216,11 @@
                                 ${renderMiniMetric('Deploys/h', s.deploysHr, 'text-indigo-600 dark:text-indigo-400')}
                                 ${renderMiniMetric('Deploys/d', s.deploysDay, 'text-indigo-600 dark:text-indigo-400')}
                                 ${renderMiniMetric('Quality', s.quality, 'text-purple-600 dark:text-purple-400')}
-                                
-                                <!-- <div class="col-span-1 lg:col-span-3"> -->
-                                    <!-- ${renderMiniMetric('Paused', s.paused, s.paused > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400')} -->
-                                <!-- </div> -->
                             </div>
 
                             <div class="mt-3 space-y-2 pt-3 border-t border-slate-300/50 dark:border-slate-700/50">
                                 <div class="flex justify-between items-center text-[10px]">
-                                    <span class="text-slate-500 font-bold uppercase">Period</span>
+                                    <span class="text-slate-500 font-bold uppercase">Quality Period</span>
                                     <span class="font-mono text-slate-700 dark:text-slate-300 truncate max-w-[140px]" title="${s.period}">${s.period || '-'}</span>
                                 </div>
                                 <div class="flex justify-between items-center text-[10px]">
@@ -984,6 +1232,48 @@
                     });
                 }
 
+                // --- PROJECTS SECTION GENERATION ---
+                let projectsHTML = '';
+                if (entityData.projects) {
+                    const currentProjects = [];
+                    const neededProjects = [];
+                    
+                    Object.entries(entityData.projects).forEach(([pid, p]) => {
+                        const item = `
+                            <div class="project-badge ${p.type === 'current' ? 'project-current' : 'project-needed'} group">
+                                <span class="truncate pr-2" title="${p.name}">${p.name}</span>
+                                ${canEdit ? `<button onclick="window.deleteProject('${entityId}', '${pid}')" class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"><i class="ph ph-x"></i></button>` : ''}
+                            </div>
+                        `;
+                        if (p.type === 'current') currentProjects.push(item);
+                        else neededProjects.push(item);
+                    });
+
+                    // Add Buttons
+                    const addCurrentBtn = canEdit ? `<button onclick="window.addProject('${entityId}', 'current')" class="w-full text-[10px] uppercase font-bold text-slate-400 hover:text-emerald-500 border border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 rounded p-1 mt-1 transition-colors">+ Add Existing</button>` : '';
+                    const addNeededBtn = canEdit ? `<button onclick="window.addProject('${entityId}', 'needed')" class="w-full text-[10px] uppercase font-bold text-slate-400 hover:text-amber-500 border border-dashed border-slate-300 dark:border-slate-700 hover:border-amber-500 rounded p-1 mt-1 transition-colors">+ Add Needed</button>` : '';
+
+                    projectsHTML = `
+                        <div class="flex flex-col gap-4 mt-4 lg:mt-0 w-full lg:w-60 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 pt-4 lg:pt-0 lg:pl-6">
+                            <div>
+                                <h4 class="text-[10px] font-black uppercase text-slate-500 mb-2 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-emerald-500"></div> Existing Projects</h4>
+                                <div class="max-h-40 overflow-y-auto pr-1 custom-scrollbar space-y-1">
+                                    ${currentProjects.length ? currentProjects.join('') : '<span class="text-[10px] italic text-slate-400">None listed</span>'}
+                                </div>
+                                ${addCurrentBtn}
+                            </div>
+                            <div class="mt-2">
+                                <h4 class="text-[10px] font-black uppercase text-slate-500 mb-2 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-amber-500"></div> Needed Projects</h4>
+                                <div class="max-h-40 overflow-y-auto pr-1 custom-scrollbar space-y-1">
+                                    ${neededProjects.length ? neededProjects.join('') : '<span class="text-[10px] italic text-slate-400">None listed</span>'}
+                                </div>
+                                ${addNeededBtn}
+                            </div>
+                        </div>
+                    `;
+                }
+                // ------------------------------------
+
                 let addBtn = '';
                 if (canEdit) {
                     addBtn = `
@@ -994,9 +1284,9 @@
                     `;
                 }
 
-                const isBuiltIn = !!BUILTIN_CONFIGS[entityId];
                 let controlsBtn = '';
-                if (canEdit) { // Only show these controls if user can edit this entity
+                if (canEdit) { 
+                    const isBuiltIn = !!BUILTIN_CONFIGS[entityId];
                     const deleteBtn = (userRole === 'SUPER' && !isBuiltIn) ? `
                         <button onclick="event.stopPropagation(); window.deleteEntity('${entityId}')" class="text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 p-2 bg-rose-500/10 rounded-full hover:bg-rose-500/20 transition-colors" title="Delete">
                             <i class="ph ph-trash text-lg"></i>
@@ -1008,16 +1298,27 @@
                         </button>
                     ` : '';
 
+                    const moveBtns = userRole === 'SUPER' ? `
+                        <div class="flex flex-col mr-2 border-r border-slate-300 dark:border-slate-700 pr-2">
+                            <button onclick="event.stopPropagation(); window.moveEntity('${entityId}', -1)" class="hover:text-blue-500 text-slate-400"><i class="ph ph-caret-up"></i></button>
+                            <button onclick="event.stopPropagation(); window.moveEntity('${entityId}', 1)" class="hover:text-blue-500 text-slate-400"><i class="ph ph-caret-down"></i></button>
+                        </div>
+                    ` : '';
+
                     controlsBtn = `
                         <div class="absolute top-6 right-16 flex items-center gap-2 z-20">
                             ${toggleStateBtn}
                             ${deleteBtn}
                         </div>
                     `;
+
+                    var moveControls = moveBtns; 
+                } else {
+                    var moveControls = '';
                 }
 
                 let proxyDisplay = `<span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.proxy}</span>`;
-                if (isManual && canEdit && !isDisabled) {
+                if (canEdit && !isDisabled) {
                     proxyDisplay += `
                         <button onclick="event.stopPropagation(); window.openGlobalStatsModal('${entityId}')" class="ml-1 text-xs text-slate-400 hover:text-blue-500"><i class="ph ph-pencil-simple"></i></button>
                     `;
@@ -1029,6 +1330,7 @@
                     <div class="p-6 flex flex-col md:flex-row items-center justify-between gap-6 cursor-pointer bg-slate-100/40 dark:bg-slate-900/40 hover:bg-slate-200/40 dark:hover:bg-slate-900/60 transition-colors" onclick="window.toggleEntity('${entityId}')">
                         
                         <div class="flex items-center gap-4 min-w-[150px]">
+                            ${moveControls}
                             <div class="w-12 h-12 rounded-xl bg-gradient-to-br ${isDisabled ? 'from-slate-400 to-slate-500' : 'from-indigo-500 to-blue-600'} flex items-center justify-center shadow-lg ring-2 ring-black/5 dark:ring-white/10">
                                 <span class="font-black text-white text-lg">${entityId.replace(/(EMS|DMF|EMK)/, '$1'[0])}</span>
                             </div>
@@ -1042,7 +1344,6 @@
                             <div class="text-center"><span class="block text-[9px] font-bold text-blue-500 uppercase">RDPs</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.rdps}</span></div>
                             <div class="text-center"><span class="block text-[9px] font-bold text-emerald-500 uppercase">Seeds</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.seeds}</span></div>
                             <div class="text-center"><span class="block text-[9px] font-bold text-purple-500 uppercase">Quality</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.qual}</span></div>
-                            <!-- <div class="text-center"><span class="block text-[9px] font-bold text-rose-500 uppercase">Paused</span><span class="text-lg font-black text-slate-700 dark:text-white">${entityTotals.pause}</span></div> -->
                             <div class="text-center"><span class="block text-[9px] font-bold text-orange-500 uppercase">Proxy</span>${proxyDisplay}</div>
                         </div>
 
@@ -1053,9 +1354,12 @@
 
                     <div class="accordion-content ${isExpanded ? 'open' : ''}">
                         <div class="p-6 bg-slate-50/50 dark:bg-slate-950/30 border-t border-black/5 dark:border-white/5">
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                ${platformsHTML}
-                                ${addBtn}
+                            <div class="flex flex-col lg:flex-row gap-6">
+                                <div class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                                    ${platformsHTML}
+                                    ${addBtn}
+                                </div>
+                                ${projectsHTML}
                             </div>
                         </div>
                     </div>
@@ -1064,7 +1368,6 @@
 
             document.getElementById('entities-list').innerHTML = listHtml;
             
-            // Only Super Admin can see the global "Add System" button
             if (userRole === 'SUPER') {
                 document.getElementById('super-admin-controls').classList.remove('hidden');
             } else {
@@ -1121,21 +1424,21 @@
             const stats = data.stats;
             
             document.getElementById('modal-title').innerText = `Edit: ${platformKey}`;
-            document.getElementById('edit-entity-id').value = entityId;
-            document.getElementById('edit-platform-id').value = platformKey;
+            setVal('edit-entity-id', entityId);
+            setVal('edit-platform-id', platformKey);
             
-            document.getElementById('edit-seeds').value = stats.seeds || 0;
-            document.getElementById('edit-rdps').value = stats.rdps || 0;
-            document.getElementById('edit-sessions').value = stats.sessions || 0;
-            document.getElementById('edit-quality').value = stats.quality || 0;
-            document.getElementById('edit-deploysHr').value = stats.deploysHr || 0;
-            document.getElementById('edit-paused').value = stats.paused || 0;
-            document.getElementById('edit-deploysDay').value = stats.deploysDay || 0;
-            document.getElementById('edit-seedsHr').value = stats.seedsHr || 0;
-            document.getElementById('edit-seedsDay').value = stats.seedsDay || 0;
-            document.getElementById('edit-lancements').value = stats.lancements || 0;
-            document.getElementById('edit-period').value = stats.period || '';
-            document.getElementById('edit-rotation').value = stats.rotation || '';
+            setVal('edit-seeds', stats.seeds || 0);
+            setVal('edit-rdps', stats.rdps || 0);
+            setVal('edit-sessions', stats.sessions || 0);
+            setVal('edit-quality', stats.quality || 0);
+            setVal('edit-deploysHr', stats.deploysHr || 0);
+            setVal('edit-paused', stats.paused || 0);
+            setVal('edit-deploysDay', stats.deploysDay || 0);
+            setVal('edit-seedsHr', stats.seedsHr || 0);
+            setVal('edit-seedsDay', stats.seedsDay || 0);
+            setVal('edit-lancements', stats.lancements || 0);
+            setVal('edit-period', stats.period || '');
+            setVal('edit-rotation', stats.rotation || '');
 
             setModalView('data');
             document.getElementById('editor-modal').showModal();
@@ -1146,16 +1449,13 @@
                 return alert("Access Denied: You do not have permission to edit this entity.");
             }
 
-            document.getElementById('modal-title').innerText = `Edit Global Stats: ${entityId}`;
-            document.getElementById('edit-entity-id').value = entityId;
-            document.getElementById('edit-platform-id').value = 'GLOBAL';
+            document.getElementById('modal-title').innerText = `Edit Manual Stats: ${entityId}`;
+            setVal('edit-entity-id', entityId);
+            setVal('edit-platform-id', 'GLOBAL');
             
             const gStats = appState[entityId].globalStats || {};
-            document.getElementById('edit-global-proxy').value = gStats.proxy || 0;
-            document.getElementById('edit-global-rdps').value = gStats.rdps || 0;
-            document.getElementById('edit-global-seeds').value = gStats.seeds || 0;
-            document.getElementById('edit-global-quality').value = gStats.quality || 0;
-            document.getElementById('edit-global-paused').value = gStats.paused || 0;
+            setVal('edit-global-proxy', gStats.proxy || 0);
+            setVal('edit-global-rdps', gStats.rdps || 0);
             
             setModalView('global');
             document.getElementById('editor-modal').showModal();
@@ -1168,8 +1468,8 @@
 
             document.getElementById('modal-title').innerText = `Add Platform to ${entityId}`;
             document.getElementById('editor-form').reset();
-            document.getElementById('edit-entity-id').value = entityId;
-            document.getElementById('edit-platform-id').value = 'NEW';
+            setVal('edit-entity-id', entityId);
+            setVal('edit-platform-id', 'NEW');
             
             setModalView('platform');
             document.getElementById('editor-modal').showModal();
@@ -1230,11 +1530,11 @@
 
                 if (type === 'api') {
                     config = {
-                        apiKey: document.getElementById('new-entity-apikey').value.trim(),
-                        authDomain: document.getElementById('new-entity-authdomain').value.trim(),
-                        databaseURL: document.getElementById('new-entity-dburl').value.trim(),
-                        projectId: document.getElementById('new-entity-projectid').value.trim(),
-                        appId: document.getElementById('new-entity-appid').value.trim()
+                        apiKey: getVal('new-entity-apikey').trim(),
+                        authDomain: getVal('new-entity-authdomain').trim(),
+                        databaseURL: getVal('new-entity-dburl').trim(),
+                        projectId: getVal('new-entity-projectid').trim(),
+                        appId: getVal('new-entity-appid').trim()
                     };
                     if (!config.apiKey || !config.databaseURL) return alert("API Key and DB URL are required.");
                 } else {
@@ -1250,9 +1550,8 @@
                 return;
             }
 
-            const entityId = document.getElementById('edit-entity-id').value;
+            const entityId = getVal('edit-entity-id');
             
-            // Security Check before saving
             if (!canEditEntity(entityId)) {
                 return alert("Access Denied: You cannot modify this entity.");
             }
@@ -1260,43 +1559,65 @@
             const entityConfig = ALL_ENTITY_CONFIGS[entityId];
 
             if (mode === 'global') {
-                if (entityConfig && entityConfig.manual) {
-                    await update(ref(masterDb, `manual_data/${entityId}/global_stats`), { 
-                        proxy: parseInt(document.getElementById('edit-global-proxy').value) || 0,
-                        glb_rdps: parseInt(document.getElementById('edit-global-rdps').value) || 0,
-                        "Total Seeds": parseInt(document.getElementById('edit-global-seeds').value) || 0,
-                        Qualite: parseInt(document.getElementById('edit-global-quality').value) || 0,
-                        Paused: parseInt(document.getElementById('edit-global-paused').value) || 0,
-                    });
+                const updates = {
+                    proxy: getInt('edit-global-proxy'),
+                    glb_rdps: getInt('edit-global-rdps'),
+                };
+
+                try {
+                    if (entityConfig && entityConfig.manual) {
+                        await update(ref(masterDb, `manual_data/${entityId}/global_stats`), updates);
+                    } else {
+                         const app = getEntityApp(entityId);
+                         const db = getDatabase(app);
+                         await update(ref(db, `${entityId.toLowerCase()}/global_stats`), updates);
+                    }
                     document.getElementById('editor-modal').close();
-                } else {
-                    alert("Editing global stats for connected entities is not supported in this view.");
+                } catch (err) {
+                    alert("Failed to save global stats: " + err.message);
                 }
                 return;
             }
 
-            let platformId = document.getElementById('edit-platform-id').value;
+            let platformId = getVal('edit-platform-id');
             
             if (platformId === 'NEW') {
-                platformId = document.getElementById('edit-name').value.toUpperCase().replace(/\s+/g, '_');
-                if (!platformId) return alert("Name required");
+                platformId = getVal('edit-name').toUpperCase().replace(/\s+/g, '_');
+                if (!platformId) return alert("Platform Name required!");
+            }
+
+            if (mode === 'data' || mode === 'platform') {
+                const requiredFields = [
+                    { id: 'edit-seeds', label: 'Seeds' },
+                    { id: 'edit-rdps', label: 'RDPs' },
+                    { id: 'edit-sessions', label: 'Sessions' },
+                    { id: 'edit-lancements', label: 'Launches' }
+                ];
+                
+                for (let field of requiredFields) {
+                    const val = document.getElementById(field.id).value;
+                    if (val === '' || val === null) {
+                         alert(`Le champ "${field.label}" est obligatoire !`);
+                         return; // Stop submission
+                    }
+                }
             }
 
             const updates = {
                 current: {
                     updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
-                    seeds: parseInt(document.getElementById('edit-seeds').value) || 0,
-                    rdps: parseInt(document.getElementById('edit-rdps').value) || 0,
-                    sessions: parseInt(document.getElementById('edit-sessions').value) || 0,
-                    quality: parseInt(document.getElementById('edit-quality').value) || 0,
-                    nbrdeploysperhour: parseInt(document.getElementById('edit-deploysHr').value) || 0,
-                    paused: parseInt(document.getElementById('edit-paused').value) || 0,
-                    nbrdeploysperday: parseInt(document.getElementById('edit-deploysDay').value) || 0,
-                    nbrseedsperhour: parseInt(document.getElementById('edit-seedsHr').value) || 0,
-                    nbrseedsperday: parseInt(document.getElementById('edit-seedsDay').value) || 0,
-                    nbrlancement: parseInt(document.getElementById('edit-lancements').value) || 0,
-                    period: document.getElementById('edit-period').value,
-                    rotation: document.getElementById('edit-rotation').value,
+                    seeds: getInt('edit-seeds'),
+                    rdps: getInt('edit-rdps'),
+                    sessions: getInt('edit-sessions'),
+                    quality: getInt('edit-quality'),
+                    nbrdeploysperhour: getInt('edit-deploysHr'),
+                    paused: getInt('edit-paused'),
+                    nbrdeploysperday: getInt('edit-deploysDay'),
+                    nbrseedsperhour: getInt('edit-seedsHr'),
+                    nbrseedsperday: getInt('edit-seedsDay'),
+                    nbrlancement: getInt('edit-lancements'),
+                    period: getVal('edit-period'),
+                    rotation: getVal('edit-rotation'),
                 }
             };
 
@@ -1330,7 +1651,6 @@
         }
         generateStars();
 
-        // Check Login State on Load
         checkAuthOnLoad();
 
     </script>
