@@ -547,51 +547,29 @@
 
         // --- CONFIGURATION ---
         const BUILTIN_CONFIGS = {
-          EMS1: {
-            apiKey: "AIzaSyCEwB2iTsirdhL6O3xymPGAt2k5yia6tjw",
-            authDomain: "ems1-reporting.firebaseapp.com",
-            databaseURL: "https://ems1-reporting-default-rtdb.firebaseio.com",
-            projectId: "ems1-reporting",
-            appId: "1:649094135962:web:eaa6641f80c2805e8f5f23"
-          },
-          EMS3: {
-            apiKey: "AIzaSyBp5t2-Xlxj6_XiDi6y09zbOkHYLe2X9Ls",
-            authDomain: "ems3-reporting.firebaseapp.com",
-            databaseURL: "https://ems3-reporting-default-rtdb.firebaseio.com",
-            projectId: "ems3-reporting",
-            appId: "1:696098202646:web:8abbc6257a2982549c0137"
-          },
-          EMS4: {
-            apiKey: "AIzaSyAFR96bibEGLaMroqFZCLcSHyCoAdewz78",
-            authDomain: "ems4-reporting.firebaseapp.com",
-            databaseURL: "https://ems4-reporting-default-rtdb.firebaseio.com",
-            projectId: "ems4-reporting",
-            appId: "1:290747078412:web:f1ddc2273dc07cc6e55b29"
-          },
-          EMS6: {
-            apiKey: "AIzaSyB_aylTk3hW60y3Kewlbb4B76J3f-lx0qE",
-            authDomain: "ems6-reporting.firebaseapp.com",
-            databaseURL: "https://ems6-reporting-default-rtdb.firebaseio.com",
-            projectId: "ems6-reporting",
-            appId: "1:1091962206156:web:0c6c970e222403ab1f8f69"
-          },
-          DMF: {
-            apiKey: "AIzaSyBaPXh-EtZqg-cgD_RNyEx_PNisfngT8-s",
-            authDomain: "dmf-reporting.firebaseapp.com",
-            databaseURL: "https://dmf-reporting-default-rtdb.firebaseio.com/",
-            projectId: "dmf-reporting",
-            appId: "1:151591156744:web:ec1a8c2a68b629c46ca5bd"
-          }
+          // Converted to Manual Mode as requested
+          EMS1: { manual: true },
+          EMS3: { manual: true },
+          EMS4: { manual: true },
+          EMS6: { manual: true },
+          DMF: { manual: true },
+
+          // Existing Manual Entities (Ensuring they are available)
+          EMH: { manual: true },
+          EMK1: { manual: true },
+          EMK2: { manual: true },
+          EMK3: { manual: true },
+          EMSL: { manual: true }
         };
 
-        // DEPRECATED: Platform Whitelist Removed. 
-        // This object is kept just in case external code references it, but logic is removed.
-        const ALLOWED_PLATFORMS = {
-            'DMF': [],
-            'EMS1': [],
-            'EMS3': [],
-            'EMS4': [],
-            'EMS6': []
+        // NOTE: The logic to filter platforms has been removed to allow ANY new platform to appear automatically.
+        // The list below is no longer used for filtering but kept for reference if needed.
+        const LEGACY_ALLOWED_PLATFORMS = {
+            'DMF': ['SELENIUM 2'],
+            'EMS1': ['SELENIUM'],
+            'EMS3': ['WEB', 'SELENIUM', 'AUTOMAT'],
+            'EMS4': ['WEB', 'SELENIUM'],
+            'EMS6': ['WEB', 'SELENIUM', 'AUTOMAT']
         };
 
         let ALL_ENTITY_CONFIGS = { ...BUILTIN_CONFIGS };
@@ -604,6 +582,11 @@
 
         function getEntityApp(entityId) {
             if (initializedApps[entityId]) return initializedApps[entityId];
+            
+            // If manual, we don't need an app, but this function might be called in legacy paths.
+            // However, connectEntity handles manual check first.
+            if (ALL_ENTITY_CONFIGS[entityId]?.manual) return null;
+
             const existingApps = getApps();
             const found = existingApps.find(app => app.name === entityId);
             initializedApps[entityId] = found ? found : initializeApp(ALL_ENTITY_CONFIGS[entityId], entityId);
@@ -645,9 +628,12 @@
 
         function processPlanData(rawPlans, rootPath, entityId) {
              const platforms = {};
-             // RESTRICTION REMOVED: Now accepting all platforms under 'plans'
-             
+             // We removed the filtering here so ANY platform key in Firebase will be displayed automatically.
+             // const allowed = ALLOWED_PLATFORMS[entityId];
+
              Object.keys(rawPlans).forEach(key => {
+                // if (allowed && !allowed.includes(key)) return; <--- REMOVED TO SUPPORT AUTO-DISCOVERY
+
                 const planData = rawPlans[key] || {};
                 const currentData = planData.current || {};
                 
@@ -658,6 +644,7 @@
                     ...(currentData.stats || {}) 
                 };
 
+                // Check if there is enough data to display
                 if (Object.keys(searchObj).length > 0 || planData.deploys || currentData.deploys) {
                     let activeDeploysCount = 0;
                     let deploysObj = planData.deploys || currentData.deploys;
@@ -1061,7 +1048,7 @@
                 
                 ${renderStatCard('Total Deploys/hour', globalTotals.deploysHr, 'text-indigo-500 dark:text-indigo-400')}
                 ${renderStatCard('Total Deploys/day', globalTotals.deploysDay, 'text-indigo-500 dark:text-indigo-400')}
-                ${renderStatCard('Total Launches', globalTotals.lancements, 'text-orange-500 dark:text-orange-400')}
+                ${renderStatCard('Total Launches/Day', globalTotals.lancements, 'text-orange-500 dark:text-orange-400')}
                 
                 ${renderStatCard('Total Seeds/hour', globalTotals.seedsHr, 'text-teal-600 dark:text-teal-400')}
                 ${renderStatCard('Total Seeds/day', globalTotals.seedsDay, 'text-teal-600 dark:text-teal-400')}
@@ -1579,5 +1566,5 @@
         checkAuthOnLoad();
 
     </script>
-  </body>
+</body>
 </html>
